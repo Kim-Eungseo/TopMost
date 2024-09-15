@@ -8,6 +8,7 @@ from .basic.ECRTM.ECRTM import ECRTM
 
 from .crosslingual.NMTM import NMTM
 from .crosslingual.InfoCTM.InfoCTM import InfoCTM
+from .crosslingual.OxTM.OxTM import OxTM
 
 from .dynamic.DETM import DETM
 from .dynamic.CFDTM.CFDTM import CFDTM

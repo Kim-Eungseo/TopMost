@@ -6,7 +6,6 @@ from tqdm import tqdm
 from topmost.utils import _utils
 from topmost.utils.logger import Logger
 
-
 logger = Logger("WARNING")
 
 
@@ -22,7 +21,7 @@ class CrosslingualTrainer:
                  lr_step_size=125,
                  log_interval=5,
                  verbose=False
-                ):
+                 ):
 
         self.model = model
         self.dataset = dataset
@@ -65,7 +64,6 @@ class CrosslingualTrainer:
             lr_scheduler = self.make_lr_scheduler(optimizer)
 
         for epoch in tqdm(range(1, self.epochs + 1)):
-
 
             loss_rst_dict = defaultdict(float)
 
@@ -111,7 +109,7 @@ class CrosslingualTrainer:
     def infer_theta(self, bow, lang):
         theta_list = list()
         data_size = bow.shape[0]
-        all_idx = torch.split(torch.arange(data_size,), self.batch_size)
+        all_idx = torch.split(torch.arange(data_size, ), self.batch_size)
         with torch.no_grad():
             self.model.eval()
             for idx in all_idx:

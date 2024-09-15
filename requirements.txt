@@ -7,3 +7,7 @@ scikit-learn>=0.24.2
 tqdm>=4.66.0
 fastopic>=0.0.5
 bertopic>=0.15.0
+
+torch~=2.4.1
+setuptools~=72.1.0
+fasttext~=0.9.2
