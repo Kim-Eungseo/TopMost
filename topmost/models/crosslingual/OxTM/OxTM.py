@@ -1,35 +1,32 @@
 import numpy as np
+import ot
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from geomloss import SamplesLoss
 
 from topmost.models.Encoder import MLPEncoder
-from topmost.models.crosslingual.OxTM.sinkhorn_loss import SinkhornLoss
 
 
 class OxTM(nn.Module):
     def __init__(self,
                  num_topics: int,
-                 vocab_size_anchor: int,
-                 vocab_size_alignment: int,
-                 pretrain_word_embeddings_anchor: torch.Tensor,
-                 pretrain_word_embeddings_alignment: torch.Tensor,
-                 anchor1_units: int,
+                 vocab_size_en: int,
+                 vocab_size_cn: int,
+                 pretrain_word_embeddings_en: torch.Tensor,
+                 pretrain_word_embeddings_cn: torch.Tensor,
+                 en1_units: int,
                  dropout: float = 0.0,
-                 device='cpu'):
+                 device_BWE='cuda'):
         super().__init__()
 
-        self.sinkhorn_loss_fn = None
         self.num_topic = num_topics
 
-        self.BWE_anchor = torch.from_numpy(pretrain_word_embeddings_anchor).float()
-        self.BWE_alignment = torch.from_numpy(pretrain_word_embeddings_alignment).float()
+        self.BWE_en = torch.from_numpy(pretrain_word_embeddings_en).float().to(device_BWE)
+        self.BWE_cn = torch.from_numpy(pretrain_word_embeddings_cn).float().to(device_BWE)
 
-        self.BWE_anchor = self.BWE_anchor.to(device)
-        self.BWE_alignment = self.BWE_alignment.to(device)
-
-        self.encoder_anchor = MLPEncoder(vocab_size_anchor, num_topics, anchor1_units, dropout)
-        self.encoder_alignment = MLPEncoder(vocab_size_alignment, num_topics, anchor1_units, dropout)
+        self.encoder_en = MLPEncoder(vocab_size_en, num_topics, en1_units, dropout)
+        self.encoder_cn = MLPEncoder(vocab_size_cn, num_topics, en1_units, dropout)
 
         self.a = 1 * np.ones((1, num_topics)).astype(np.float32)
         self.mu2 = nn.Parameter(torch.as_tensor((np.log(self.a).T - np.mean(np.log(self.a), 1)).T),
@@ -37,18 +34,32 @@ class OxTM(nn.Module):
         self.var2 = nn.Parameter(torch.as_tensor((((1.0 / self.a) * (1 - (2.0 / num_topics))).T + (
                 1.0 / (num_topics * num_topics)) * np.sum(1.0 / self.a, 1)).T), requires_grad=False)
 
-        self.decoder_bn_anchor = nn.BatchNorm1d(vocab_size_anchor, affine=True)
-        self.decoder_bn_anchor.weight.requires_grad = False
-        self.decoder_bn_alignment = nn.BatchNorm1d(vocab_size_alignment, affine=True)
-        self.decoder_bn_alignment.weight.requires_grad = False
+        self.decoder_bn_en = nn.BatchNorm1d(vocab_size_en, affine=True)
+        self.decoder_bn_en.weight.requires_grad = False
+        self.decoder_bn_cn = nn.BatchNorm1d(vocab_size_cn, affine=True)
+        self.decoder_bn_cn.weight.requires_grad = False
 
-        self.phi_anchor = nn.Parameter(nn.init.xavier_uniform_(torch.empty((num_topics, vocab_size_anchor))))
-        self.phi_alignment = nn.Parameter(nn.init.xavier_uniform_(torch.empty((num_topics, vocab_size_alignment))))
+        self.phi_en = nn.Parameter(nn.init.xavier_uniform_(torch.empty((num_topics, vocab_size_en))))
+        self.phi_cn = nn.Parameter(nn.init.xavier_uniform_(torch.empty((num_topics, vocab_size_cn))))
+
+        # 캐싱을 위한 변수들 초기화
+        self.cached_sinkhorn_loss = None
+        self.previous_beta_en_hash = None
+        self.previous_beta_cn_hash = None
+
+        # Define the SamplesLoss (Sinkhorn Loss) from GeomLoss
+        self.sinkhorn_loss_fn = SamplesLoss("sinkhorn", p=2, blur=0.05)
+
+        # Normalize Bilingual Word Embeddings
+        BWE_en_norm = F.normalize(self.BWE_en, p=2, dim=1)
+        BWE_cn_norm = F.normalize(self.BWE_cn, p=2, dim=1)
+
+        self.M = 1 - torch.mm(BWE_en_norm, BWE_cn_norm.T).to(device_BWE)  # Cost matrix = Cosine distance matrix
 
     def get_beta(self):
-        beta_anchor = self.phi_anchor
-        beta_alignment = self.phi_alignment
-        return beta_anchor, beta_alignment
+        beta_en = self.phi_en
+        beta_cn = self.phi_cn
+        return beta_en, beta_cn
 
     def get_theta(self, x, lang):
         theta, mu, logvar = getattr(self, f'encoder_{lang}')(x)
@@ -63,45 +74,33 @@ class OxTM(nn.Module):
         d1 = F.softmax(bn(torch.matmul(theta, beta)), dim=1)
         return d1
 
-    def forward(self, x_anchor, x_alignment):
-        theta_anchor, mu_anchor, logvar_anchor = self.get_theta(x_anchor, lang='anchor')
-        theta_alignment, mu_alignment, logvar_alignment = self.get_theta(x_alignment, lang='alignment')
+    def forward(self, x_en, x_cn):
+        theta_en, mu_en, logvar_en = self.get_theta(x_en, lang='en')
+        theta_cn, mu_cn, logvar_cn = self.get_theta(x_cn, lang='cn')
 
-        beta_anchor, beta_alignment = self.get_beta()
-
+        beta_en, beta_cn = self.get_beta()
         rst_dict = dict()
 
-        x_recon_anchor = self.decode(theta_anchor, beta_anchor, lang='anchor')
-        x_recon_alignment = self.decode(theta_alignment, beta_alignment, lang='alignment')
+        x_recon_en = self.decode(theta_en, beta_en, lang='en')
+        x_recon_cn = self.decode(theta_cn, beta_cn, lang='cn')
 
-        loss_anchor = self.loss_function(x_recon_anchor, x_anchor, mu_anchor, logvar_anchor)
-        loss_alignment = self.loss_function(x_recon_alignment, x_alignment, mu_alignment, logvar_alignment)
+        loss_en = self.loss_function(x_recon_en, x_en, mu_en, logvar_en)
+        loss_cn = self.loss_function(x_recon_cn, x_cn, mu_cn, logvar_cn)
 
-        loss = loss_anchor + loss_alignment
-        rst_dict['loss_anchor'] = loss_anchor
-        rst_dict['loss_alignment'] = loss_alignment
+        loss = loss_en + loss_cn
+        rst_dict['loss_en'] = loss_en
+        rst_dict['loss_cn'] = loss_cn
 
-        # Normalize Bilingual Word Embeddings
-        BWE_anchor_norm = F.normalize(self.BWE_anchor, p=2, dim=1)
-        BWE_alignment_norm = F.normalize(self.BWE_alignment, p=2, dim=1)
+        reg = 1e-3
 
-        # Compute Cost matrix
-        M = 1 - torch.mm(BWE_anchor_norm, BWE_alignment_norm.T)  # Cost matrix = Cosine distance matrix
+        sinkhorn_loss = self.sinkhorn_loss(beta_cn, beta_en, self.M, reg, self.num_topic)
+        # sinkhorn_loss = self.sinkhorn_loss_fn(BWE_en_norm, BWE_cn_norm)
 
-        fea_anchor = beta_anchor.T
-        fea_alignment = beta_alignment.T
-
-        # Compute Sinkhorn loss between topic-word distributions
-        # hyperparameter : entropy regularization, the number of sinkhorn algorithm iteration
-
-        self.sinkhorn_loss_fn = SinkhornLoss(epsilon=0.1, num_iter=500)
-        sinkhorn_loss = self.sinkhorn_loss_fn(fea_anchor, fea_alignment, M)
         rst_dict['sinkhorn_loss'] = sinkhorn_loss
 
-        total_loss = loss + 0.1 * sinkhorn_loss  # weight of sinkorn loss function
+        total_loss = loss + 0.5 * sinkhorn_loss  # weight of sinkhorn loss function
         rst_dict['loss'] = total_loss
 
-        # return total_loss, rst_dict
         return rst_dict
 
     def loss_function(self, recon_x, x, mu, logvar):
@@ -116,3 +115,41 @@ class OxTM(nn.Module):
 
         LOSS = (RECON + KLD).mean()
         return LOSS
+
+    def sinkhorn_loss(self, beta_cn, beta_en, cost_matrix, reg, num_topic):
+        #
+        beta_cn = beta_cn.detach()
+        beta_en = beta_en.detach()
+        cost_matrix = cost_matrix.detach()
+
+        total_topic_loss = 0
+        top_n = 100
+
+        for topic in range(num_topic):
+
+            beta_cn_topic = beta_cn[topic]
+            top_cn_indices = torch.topk(beta_cn_topic, top_n).indices  # Get top 10 indices directly with PyTorch
+
+            beta_en_topic = beta_en[topic]
+            top_en_indices = torch.topk(beta_en_topic, top_n).indices  # Get top 10 indices directly with PyTorch
+
+            sub_beta_cn = beta_cn_topic[top_cn_indices]
+            sub_beta_en = beta_en_topic[top_en_indices]
+
+            sub_beta_cn /= sub_beta_cn.sum()
+            sub_beta_en /= sub_beta_en.sum()
+
+            sub_cost_matrix = cost_matrix[top_cn_indices][:, top_en_indices]
+
+            sub_beta_cn_np = sub_beta_cn.cpu().numpy()
+            sub_beta_en_np = sub_beta_en.cpu().numpy()
+            sub_cost_matrix_np = sub_cost_matrix.cpu().numpy()
+
+            # loss = ot.sinkhorn2(sub_beta_cn_np, sub_beta_en_np, sub_cost_matrix_np, reg=reg, numItermax=1000)
+            loss = ot.sinkhorn2(sub_beta_cn_np, sub_beta_en_np, sub_cost_matrix_np, reg=reg, numItermax=1000)
+            total_topic_loss += loss
+
+        total_topic_loss = torch.tensor(float(total_topic_loss), device=beta_cn.device)  # Stay on GPU
+
+        return total_topic_loss
+

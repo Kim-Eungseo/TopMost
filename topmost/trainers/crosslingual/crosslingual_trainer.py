@@ -57,6 +57,11 @@ class CrosslingualTrainer:
         return lr_scheduler
 
     def train(self):
+        data_size = len(self.dataset.train_dataloader.dataset)  # total number of samples
+        batch_count = len(self.dataset.train_dataloader)  # number of batches
+        print(f"Total batches in train_dataloader: {batch_count}")
+        print(f"Total size in train_dataloader: {data_size}")
+
         data_size = len(self.dataset.train_dataloader.dataset)
         optimizer = self.make_optimizer()
 

@@ -1,7 +1,7 @@
 import topmost
 from topmost.data import download_dataset
 
-device = "mps"  # or "cpu"
+device = "cuda"  # or "cpu"
 dataset_dir = "./datasets/Amazon_Review"
 # download_dataset('Amazon_Review', cache_path='./datasets')
 
@@ -19,36 +19,36 @@ dataset = topmost.data.CrosslingualDataset(
 #%%
 dataset.pretrained_WE_en.shape, dataset.pretrained_WE_cn.shape
 
-#%%
-len(dataset.word2id_cn), len(dataset.word2id_en)
+# #%%
+# len(dataset.word2id_cn), len(dataset.word2id_en)
+#
+# #%%
+# len(dataset.id2word_cn), len(dataset.id2word_en)
 
 #%%
-len(dataset.id2word_cn), len(dataset.id2word_en)
-
-#%%
-import fasttext.util
-
-fasttext.util.download_model('en', if_exists='ignore')
-fasttext.util.download_model('zh', if_exists='ignore')
-
-# Load pretrained FastText models
-# Provide the path to your downloaded models
-en_model_path = 'cc.en.300.bin'  # Path to the English FastText model
-cn_model_path = 'cc.zh.300.bin'  # Path to the Chinese FastText model
-
-# Load models using fasttext
-en_model = fasttext.load_model(en_model_path)
-cn_model = fasttext.load_model(cn_model_path)
-
-
-# Function to get embedding for a word
-def get_embedding(word, language='en'):
-    if language == 'en':
-        return en_model.get_word_vector(word)
-    elif language == 'cn':
-        return cn_model.get_word_vector(word)
-    else:
-        raise ValueError("Unsupported language. Use 'en' for English or 'cn' for Chinese.")
+# import fasttext.util
+#
+# fasttext.util.download_model('en', if_exists='ignore')
+# fasttext.util.download_model('zh', if_exists='ignore')
+#
+# # Load pretrained FastText models
+# # Provide the path to your downloaded models
+# en_model_path = 'cc.en.300.bin'  # Path to the English FastText model
+# cn_model_path = 'cc.zh.300.bin'  # Path to the Chinese FastText model
+#
+# # Load models using fasttext
+# en_model = fasttext.load_model(en_model_path)
+# cn_model = fasttext.load_model(cn_model_path)
+#
+#
+# # Function to get embedding for a word
+# def get_embedding(word, language='en'):
+#     if language == 'en':
+#         return en_model.get_word_vector(word)
+#     elif language == 'cn':
+#         return cn_model.get_word_vector(word)
+#     else:
+#         raise ValueError("Unsupported language. Use 'en' for English or 'cn' for Chinese.")
 
 
 #%%
@@ -82,8 +82,8 @@ def save_embeddings_to_word2vec_format(
 #%%
 
 # Save English embeddings from the dataset
-save_embeddings_to_word2vec_format(dataset.id2word_en, dataset.pretrained_WE_en, 'amazon_en.emb')
-save_embeddings_to_word2vec_format(dataset.id2word_cn, dataset.pretrained_WE_cn, 'amazon_cn.emb')
+# save_embeddings_to_word2vec_format(dataset.id2word_en, dataset.pretrained_WE_en, 'amazon_en.emb')
+# save_embeddings_to_word2vec_format(dataset.id2word_cn, dataset.pretrained_WE_cn, 'amazon_cn.emb')
 
 #%%
 # make en_cn dictionary text from word2id and id2word and dataset.trans_matrix_en
@@ -229,19 +229,77 @@ for i in range(len(dataset.id2word_cn)):
 
 
 #%%
-# # create a model
-# model = topmost.models.OxTM(
-#     num_topics=50,
-#     vocab_size_anchor=dataset.pretrained_WE_en.shape[0],
-#     vocab_size_alignment=dataset.pretrained_WE_cn.shape[0],
-#     pretrain_word_embeddings_anchor=dataset.pretrained_WE_en,
-#     pretrain_word_embeddings_alignment=dataset.pretrained_WE_cn,
-#     anchor1_units=200,
-#     device=device
-# )
-# model = model.to(device)
+# create a model
+model = topmost.models.OxTM(
+    num_topics=50,
+    vocab_size_en=dataset.pretrained_WE_en.shape[0],
+    vocab_size_cn=dataset.pretrained_WE_cn.shape[0],
+    pretrain_word_embeddings_en=dataset.pretrained_WE_en,
+    pretrain_word_embeddings_cn=dataset.pretrained_WE_cn,
+    en1_units=200,
+    device_BWE=device
+)
+model = model.to(device)
 #
 # # create a trainer
 # trainer = topmost.trainers.CrosslingualTrainer(model, dataset, lr_scheduler='StepLR', lr_step_size=125, epochs=500)
 # # train the model
 # top_words_en, top_words_cn, train_theta_en, train_theta_cn = trainer.train()
+
+
+# # create a model
+# model = topmost.models.InfoCTM(
+#     trans_e2c=dataset.trans_matrix_en,
+#     pretrain_word_embeddings_en=dataset.pretrained_WE_en,
+#     pretrain_word_embeddings_cn=dataset.pretrained_WE_cn,
+#     vocab_size_en=dataset.vocab_size_en,
+#     vocab_size_cn=dataset.vocab_size_cn,
+#     weight_MI=50
+# )
+# model = model.to(device)
+
+# create a trainer
+trainer = topmost.trainers.CrosslingualTrainer(model, dataset, lr_scheduler='StepLR', lr_step_size=125, epochs=500)
+# train the model
+top_words_en, top_words_cn, train_theta_en, train_theta_cn = trainer.train()
+
+import json
+
+
+#%%
+########################### Evaluate ####################################
+from topmost import evaluations
+
+# get theta (doc-topic distributions)
+train_theta_en, train_theta_cn, test_theta_en, test_theta_cn = trainer.export_theta()
+
+# compute topic coherence (CNPMI)
+# refer to https://github.com/BobXWu/CNPMI
+
+# compute topic diversity
+TD = evaluations.multiaspect_topic_diversity((top_words_en, top_words_cn))
+print(f"TD: {TD:.5f}")
+
+# evaluate classification
+results = evaluations.crosslingual_classification(
+    train_theta_en,
+    train_theta_cn,
+    test_theta_en,
+    test_theta_cn,
+    dataset.train_labels_en,
+    dataset.train_labels_cn,
+    dataset.test_labels_en,
+    dataset.test_labels_cn,
+    classifier="SVM",
+    gamma="auto"
+)
+
+print(results)
+
+print(top_words_cn)
+print(top_words_en)
+
+with open("data.json", "w") as w:
+    json.dump([top_words_en, top_words_cn], w, ensure_ascii=False)
+
+
