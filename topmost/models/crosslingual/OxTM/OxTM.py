@@ -123,30 +123,17 @@ class OxTM(nn.Module):
         cost_matrix = cost_matrix.detach()
 
         total_topic_loss = 0
-        top_n = 100
 
         for topic in range(num_topic):
-
             beta_cn_topic = beta_cn[topic]
-            top_cn_indices = torch.topk(beta_cn_topic, top_n).indices  # Get top 10 indices directly with PyTorch
-
             beta_en_topic = beta_en[topic]
-            top_en_indices = torch.topk(beta_en_topic, top_n).indices  # Get top 10 indices directly with PyTorch
 
-            sub_beta_cn = beta_cn_topic[top_cn_indices]
-            sub_beta_en = beta_en_topic[top_en_indices]
+            sub_beta_cn = beta_cn_topic.cuda()
+            sub_beta_en = beta_en_topic.cuda()
+            sub_cost_matrix = cost_matrix.cuda()
 
-            sub_beta_cn /= sub_beta_cn.sum()
-            sub_beta_en /= sub_beta_en.sum()
-
-            sub_cost_matrix = cost_matrix[top_cn_indices][:, top_en_indices]
-
-            sub_beta_cn_np = sub_beta_cn.cpu().numpy()
-            sub_beta_en_np = sub_beta_en.cpu().numpy()
-            sub_cost_matrix_np = sub_cost_matrix.cpu().numpy()
-
-            # loss = ot.sinkhorn2(sub_beta_cn_np, sub_beta_en_np, sub_cost_matrix_np, reg=reg, numItermax=1000)
-            loss = ot.sinkhorn2(sub_beta_cn_np, sub_beta_en_np, sub_cost_matrix_np, reg=reg, numItermax=1000)
+            loss = ot.sinkhorn2(sub_beta_cn, sub_beta_en, sub_cost_matrix, reg=reg, numItermax=1000)
+            # loss = ot.sinkhorn2(sub_beta_cn_jax, sub_beta_en_jax, sub_cost_matrix_jax, reg=reg, numItermax=1000)
             total_topic_loss += loss
 
         total_topic_loss = torch.tensor(float(total_topic_loss), device=beta_cn.device)  # Stay on GPU
