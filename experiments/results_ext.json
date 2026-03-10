@@ -1,0 +1,56 @@
+{
+  "main_BERTopic_20NG": {
+    "NPMI": 0.0995,
+    "TD": 0.7733,
+    "NPMI_x_TD": 0.0769,
+    "Acc": 0.4579,
+    "F1": 0.4415,
+    "AU": 4,
+    "time_sec": 22.5
+  },
+  "main_FASTopic_20NG": {
+    "NPMI": -0.0245,
+    "TD": 0.988,
+    "NPMI_x_TD": -0.0242,
+    "Acc": 0.6849,
+    "F1": 0.669,
+    "AU": 0,
+    "time_sec": 27.8
+  },
+  "main_BERTopic_NYT": {
+    "NPMI": 0.1688,
+    "TD": 0.924,
+    "NPMI_x_TD": 0.156,
+    "Acc": 0.6285,
+    "F1": 0.4717,
+    "AU": 6,
+    "time_sec": 20.1
+  },
+  "main_FASTopic_NYT": {
+    "NPMI": -0.0508,
+    "TD": 1.0,
+    "NPMI_x_TD": -0.0508,
+    "Acc": 0.7854,
+    "F1": 0.6261,
+    "AU": 0,
+    "time_sec": 22.2
+  },
+  "main_BERTopic_IMDB": {
+    "NPMI": -0.3896,
+    "TD": 0.052,
+    "NPMI_x_TD": -0.0203,
+    "Acc": 0.5393,
+    "F1": 0.4937,
+    "AU": 2,
+    "time_sec": 23.9
+  },
+  "main_FASTopic_IMDB": {
+    "NPMI": -0.208,
+    "TD": 0.9933,
+    "NPMI_x_TD": -0.2067,
+    "Acc": 0.8138,
+    "F1": 0.8138,
+    "AU": 0,
+    "time_sec": 35.1
+  }
+}

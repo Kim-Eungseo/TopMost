@@ -1,0 +1,172 @@
+\begin{thebibliography}{29}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bardes et~al.(2022)Bardes, Ponce, and LeCun]{bardes2022vicreg}
+A.~Bardes, J.~Ponce, and Y.~LeCun.
+\newblock {VICReg}: Variance-invariance-covariance regularization for
+  self-supervised learning.
+\newblock In \emph{Proceedings of ICLR}, 2022.
+
+\bibitem[Bianchi et~al.(2021)Bianchi, Terragni, and Hovy]{bianchi2021}
+F.~Bianchi, S.~Terragni, and D.~Hovy.
+\newblock Pre-training is a hot topic: Contextualized document embeddings
+  improve topic coherence.
+\newblock In \emph{Proceedings of ACL}, 2021.
+
+\bibitem[Card et~al.(2018)Card, Tan, and Smith]{card2018}
+D.~Card, C.~Tan, and N.~A. Smith.
+\newblock Neural models for documents with metadata.
+\newblock In \emph{Proceedings of ACL}, 2018.
+
+\bibitem[Cremer et~al.(2018)Cremer, Li, and Duvenaud]{cremer2018}
+C.~Cremer, X.~Li, and D.~Duvenaud.
+\newblock Inference suboptimality in variational autoencoders.
+\newblock In \emph{Proceedings of ICML}, 2018.
+
+\bibitem[Dalalyan(2017)]{dalalyan2017theoretical}
+A.~S. Dalalyan.
+\newblock Theoretical guarantees for approximate sampling from smooth and
+  log-concave densities.
+\newblock \emph{Journal of the Royal Statistical Society: Series B},
+  79\penalty0 (3):\penalty0 651--676, 2017.
+
+\bibitem[Deng et~al.(2020)Deng, Bakhtin, Ott, Szlam, and Ranzato]{deng2020}
+Y.~Deng, A.~Bakhtin, M.~Ott, A.~Szlam, and M.~Ranzato.
+\newblock Residual energy-based models for text generation.
+\newblock \emph{Journal of Machine Learning Research}, 21, 2020.
+
+\bibitem[Dieng et~al.(2020)Dieng, Ruiz, and Blei]{dieng2020}
+A.~B. Dieng, F.~J.~R. Ruiz, and D.~M. Blei.
+\newblock Topic modeling in embedding spaces.
+\newblock \emph{Transactions of the Association for Computational Linguistics},
+  8:\penalty0 439--453, 2020.
+
+\bibitem[Du and Mordatch(2019)]{du2019}
+Y.~Du and I.~Mordatch.
+\newblock Implicit generation and modeling with energy based models.
+\newblock In \emph{Proceedings of NeurIPS}, 2019.
+
+\bibitem[Grootendorst(2022)]{grootendorst2022}
+M.~Grootendorst.
+\newblock {BERTopic}: Neural topic modeling with a class-based {TF-IDF}
+  procedure.
+\newblock \emph{arXiv preprint arXiv:2203.05794}, 2022.
+
+\bibitem[Hoffman(2017)]{hoffman2017}
+M.~D. Hoffman.
+\newblock Learning deep latent {Gaussian} models with {Markov} chain {Monte
+  Carlo}.
+\newblock In \emph{Proceedings of ICML}, 2017.
+
+\bibitem[Hornik(1991)]{hornik1991}
+K.~Hornik.
+\newblock Approximation capabilities of multilayer feedforward networks.
+\newblock \emph{Neural Networks}, 4\penalty0 (2):\penalty0 251--257, 1991.
+
+\bibitem[Kim et~al.(2018)Kim, Wiseman, Miller, Sontag, and Rush]{kim2018}
+Y.~Kim, S.~Wiseman, A.~Miller, D.~Sontag, and A.~Rush.
+\newblock Semi-amortized variational autoencoders.
+\newblock In \emph{Proceedings of ICML}, 2018.
+
+\bibitem[Kingma and Welling(2014)]{kingma2014vae}
+D.~P. Kingma and M.~Welling.
+\newblock Auto-encoding variational bayes.
+\newblock In \emph{Proceedings of ICLR}, 2014.
+
+\bibitem[Lau et~al.(2014)Lau, Newman, and Baldwin]{lau2014}
+J.~H. Lau, D.~Newman, and T.~Baldwin.
+\newblock Machine reading tea leaves: Automatically evaluating topic coherence
+  and topic model quality.
+\newblock In \emph{Proceedings of EACL}, 2014.
+
+\bibitem[LeCun et~al.(2006)LeCun, Chopra, Hadsell, Ranzato, and
+  Huang]{lecun2006}
+Y.~LeCun, S.~Chopra, R.~Hadsell, M.~Ranzato, and F.~J. Huang.
+\newblock A tutorial on energy-based learning.
+\newblock \emph{Predicting Structured Data}, 1\penalty0 (0), 2006.
+
+\bibitem[Liu et~al.(2025)Liu, Lei, Sheng, Chen, and Gong]{liu2025}
+Y.~Liu, L.~Lei, V.~S. Sheng, J.~Chen, and Z.~Gong.
+\newblock Efficient energy-based neural topic modeling with embeddings.
+\newblock \emph{Neurocomputing}, 2025.
+
+\bibitem[Marino et~al.(2018)Marino, Yue, and Mandt]{marino2018}
+J.~Marino, Y.~Yue, and S.~Mandt.
+\newblock Iterative amortized inference.
+\newblock In \emph{Proceedings of ICML}, 2018.
+
+\bibitem[Meng et~al.(2022)Meng, Zhang, Huang, Zhang, and Han]{meng2022topclus}
+Y.~Meng, Y.~Zhang, J.~Huang, Y.~Zhang, and J.~Han.
+\newblock Topic discovery via latent space clustering of pretrained language
+  model representations.
+\newblock In \emph{Proceedings of WWW}, 2022.
+
+\bibitem[Miao et~al.(2016)Miao, Yu, and Blunsom]{miao2016nvdm}
+Y.~Miao, L.~Yu, and P.~Blunsom.
+\newblock Neural variational inference for text processing.
+\newblock In \emph{Proceedings of ICML}, 2016.
+
+\bibitem[Miyato et~al.(2018)Miyato, Kataoka, Koyama, and
+  Yoshida]{miyato2018spectral}
+T.~Miyato, T.~Kataoka, M.~Koyama, and Y.~Yoshida.
+\newblock Spectral normalization for generative adversarial networks.
+\newblock In \emph{Proceedings of ICLR}, 2018.
+
+\bibitem[Nijkamp et~al.(2019)Nijkamp, Hill, Zhu, and Wu]{nijkamp2019shortrun}
+E.~Nijkamp, M.~Hill, S.-C. Zhu, and Y.~N. Wu.
+\newblock Learning non-convergent non-persistent short-run {MCMC} toward
+  energy-based model.
+\newblock In \emph{Proceedings of NeurIPS}, 2019.
+
+\bibitem[Otto and Villani(2000)]{otto2000generalization}
+F.~Otto and C.~Villani.
+\newblock Generalization of an inequality by {Talagrand} and links with the
+  logarithmic {Sobolev} inequality.
+\newblock \emph{Journal of Functional Analysis}, 173\penalty0 (2):\penalty0
+  361--400, 2000.
+
+\bibitem[Pang et~al.(2020)Pang, Han, Nijkamp, Zhu, and Wu]{pang2020}
+B.~Pang, T.~Han, E.~Nijkamp, S.-C. Zhu, and Y.~N. Wu.
+\newblock Learning latent space energy-based prior model.
+\newblock In \emph{Proceedings of NeurIPS}, 2020.
+
+\bibitem[Rezende and Mohamed(2015)]{rezende2015}
+D.~J. Rezende and S.~Mohamed.
+\newblock Variational inference with normalizing flows.
+\newblock In \emph{Proceedings of ICML}, 2015.
+
+\bibitem[Ruiz and Titsias(2019)]{ruiz2019}
+F.~J.~R. Ruiz and M.~K. Titsias.
+\newblock A contrastive divergence for combining variational inference and
+  {MCMC}.
+\newblock In \emph{Proceedings of ICML}, 2019.
+
+\bibitem[Srivastava and Sutton(2017)]{srivastava2017}
+A.~Srivastava and C.~Sutton.
+\newblock Autoencoding variational inference for topic models.
+\newblock In \emph{Proceedings of ICLR}, 2017.
+
+\bibitem[Wu et~al.(2023)Wu, Nguyen, and Luu]{wu2023}
+X.~Wu, T.~T. Nguyen, and A.~T. Luu.
+\newblock Effective neural topic modeling with embedding clustering
+  regularization.
+\newblock In \emph{Proceedings of ICML}, 2023.
+
+\bibitem[Wu et~al.(2024{\natexlab{a}})Wu, Nguyen, Zhang, Wang, and
+  Luu]{wu2024fastopic}
+X.~Wu, T.~T. Nguyen, D.~C. Zhang, W.~Y. Wang, and A.~T. Luu.
+\newblock {FASTopic}: A fast, adaptive, stable, and transferable topic modeling
+  paradigm.
+\newblock In \emph{Proceedings of NeurIPS}, 2024{\natexlab{a}}.
+
+\bibitem[Wu et~al.(2024{\natexlab{b}})Wu, Pan, and Luu]{wu2023topmost}
+X.~Wu, F.~Pan, and A.~T. Luu.
+\newblock Topmost: A topic modeling system toolkit.
+\newblock In \emph{Proceedings of ACL: System Demonstrations},
+  2024{\natexlab{b}}.
+
+\end{thebibliography}

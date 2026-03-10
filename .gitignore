@@ -6,3 +6,4 @@ dist
 # Sphinx documentation
 docs/build/
 
+.omc/

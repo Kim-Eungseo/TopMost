@@ -1,0 +1,66 @@
+
+
+Dataset: 20NG
+train_size:  11314
+test_size:  7532
+vocab_size:  5000
+average length: 110.543
+  SKIP main_BERTopic_20NG
+  SKIP main_FASTopic_20NG
+
+
+Dataset: NYT
+train_size:  8254
+test_size:  918
+vocab_size:  10000
+average length: 175.429
+  SKIP main_BERTopic_NYT
+  SKIP main_FASTopic_NYT
+
+
+Dataset: IMDB
+train_size:  25000
+test_size:  25000
+vocab_size:  5000
+average length: 94.966
+
+=======================================================
+  BERTopic | IMDB
+=======================================================
+  Building TF-IDF + SVD embeddings...
+  Embeddings shape: (25000, 50), fitting on: 8000
+  Fitting BERTopic on 8000 docs...
+  Got 50 topics (target: 50)
+  Transforming test set...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+  DONE: NPMI=-0.3896 TD=0.0520 Acc=0.5393 t=23.9s
+
+=======================================================
+  FASTopic | IMDB
+=======================================================
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 17656.98it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
+loading train texts:   0%|          | 0/25000 [00:00<?, ?it/s]loading train texts:   9%|▉         | 2214/25000 [00:00<00:01, 22135.01it/s]loading train texts:  18%|█▊        | 4428/25000 [00:00<00:00, 22103.98it/s]loading train texts:  27%|██▋       | 6639/25000 [00:00<00:00, 21681.42it/s]loading train texts:  35%|███▌      | 8809/25000 [00:00<00:00, 21410.95it/s]loading train texts:  44%|████▍     | 11043/25000 [00:00<00:00, 21734.49it/s]loading train texts:  53%|█████▎    | 13239/25000 [00:00<00:00, 21807.80it/s]loading train texts:  62%|██████▏   | 15421/25000 [00:00<00:00, 21469.67it/s]loading train texts:  70%|███████   | 17570/25000 [00:00<00:00, 21366.52it/s]loading train texts:  79%|███████▉  | 19708/25000 [00:00<00:00, 21349.10it/s]loading train texts:  87%|████████▋ | 21844/25000 [00:01<00:00, 21314.83it/s]loading train texts:  96%|█████████▌| 23976/25000 [00:01<00:00, 21217.87it/s]loading train texts: 100%|██████████| 25000/25000 [00:01<00:00, 21450.73it/s]
+parsing texts:   0%|          | 0/25000 [00:00<?, ?it/s]parsing texts:  11%|█▏        | 2856/25000 [00:00<00:00, 28553.70it/s]parsing texts:  23%|██▎       | 5712/25000 [00:00<00:00, 28112.49it/s]parsing texts:  34%|███▍      | 8524/25000 [00:00<00:00, 27764.83it/s]parsing texts:  46%|████▌     | 11424/25000 [00:00<00:00, 28244.40it/s]parsing texts:  57%|█████▋    | 14250/25000 [00:00<00:00, 27923.92it/s]parsing texts:  68%|██████▊   | 17044/25000 [00:00<00:00, 27662.65it/s]parsing texts:  79%|███████▉  | 19816/25000 [00:00<00:00, 27680.00it/s]parsing texts:  90%|█████████ | 22585/25000 [00:00<00:00, 27494.93it/s]parsing texts: 100%|██████████| 25000/25000 [00:00<00:00, 27707.82it/s]
+Training FASTopic:   0%|          | 0/200 [00:00<?, ?it/s]Training FASTopic:   0%|          | 1/200 [00:00<00:29,  6.65it/s]Training FASTopic:   2%|▎         | 5/200 [00:00<00:09, 20.45it/s]Training FASTopic:   4%|▍         | 8/200 [00:00<00:09, 20.30it/s]Training FASTopic:   6%|▌         | 11/200 [00:00<00:08, 21.99it/s]Training FASTopic:   7%|▋         | 14/200 [00:00<00:08, 21.23it/s]Training FASTopic:   8%|▊         | 17/200 [00:00<00:09, 18.56it/s]Training FASTopic:  10%|▉         | 19/200 [00:01<00:09, 18.37it/s]Training FASTopic:  10%|█         | 21/200 [00:01<00:10, 17.15it/s]Training FASTopic:  12%|█▏        | 23/200 [00:01<00:10, 16.25it/s]Training FASTopic:  12%|█▎        | 25/200 [00:01<00:10, 17.01it/s]Training FASTopic:  14%|█▎        | 27/200 [00:01<00:10, 16.09it/s]Training FASTopic:  14%|█▍        | 29/200 [00:01<00:10, 15.56it/s]Training FASTopic:  16%|█▌        | 31/200 [00:01<00:10, 16.14it/s]Training FASTopic:  16%|█▋        | 33/200 [00:01<00:10, 15.51it/s]Training FASTopic:  18%|█▊        | 35/200 [00:02<00:10, 15.16it/s]Training FASTopic:  18%|█▊        | 37/200 [00:02<00:10, 15.83it/s]Training FASTopic:  20%|█▉        | 39/200 [00:02<00:10, 15.28it/s]Training FASTopic:  20%|██        | 41/200 [00:02<00:10, 15.01it/s]Training FASTopic:  22%|██▏       | 43/200 [00:02<00:09, 15.88it/s]Training FASTopic:  22%|██▎       | 45/200 [00:02<00:10, 15.32it/s]Training FASTopic:  24%|██▎       | 47/200 [00:02<00:10, 15.01it/s]Training FASTopic:  24%|██▍       | 49/200 [00:02<00:09, 15.79it/s]Training FASTopic:  26%|██▌       | 51/200 [00:03<00:09, 15.26it/s]Training FASTopic:  26%|██▋       | 53/200 [00:03<00:09, 15.05it/s]Training FASTopic:  28%|██▊       | 55/200 [00:03<00:09, 15.85it/s]Training FASTopic:  28%|██▊       | 57/200 [00:03<00:09, 15.34it/s]Training FASTopic:  30%|██▉       | 59/200 [00:03<00:09, 15.06it/s]Training FASTopic:  30%|███       | 61/200 [00:03<00:08, 15.78it/s]Training FASTopic:  32%|███▏      | 63/200 [00:03<00:08, 15.34it/s]Training FASTopic:  32%|███▎      | 65/200 [00:04<00:09, 14.97it/s]Training FASTopic:  34%|███▎      | 67/200 [00:04<00:08, 15.80it/s]Training FASTopic:  34%|███▍      | 69/200 [00:04<00:08, 15.26it/s]Training FASTopic:  36%|███▌      | 71/200 [00:04<00:08, 14.92it/s]Training FASTopic:  36%|███▋      | 73/200 [00:04<00:08, 15.66it/s]Training FASTopic:  38%|███▊      | 75/200 [00:04<00:08, 15.16it/s]Training FASTopic:  38%|███▊      | 77/200 [00:04<00:08, 14.93it/s]Training FASTopic:  40%|███▉      | 79/200 [00:04<00:07, 15.66it/s]Training FASTopic:  40%|████      | 81/200 [00:05<00:07, 15.17it/s]Training FASTopic:  42%|████▏     | 83/200 [00:05<00:07, 14.93it/s]Training FASTopic:  42%|████▎     | 85/200 [00:05<00:07, 15.68it/s]Training FASTopic:  44%|████▎     | 87/200 [00:05<00:07, 15.22it/s]Training FASTopic:  44%|████▍     | 89/200 [00:05<00:07, 14.96it/s]Training FASTopic:  46%|████▌     | 91/200 [00:05<00:06, 15.70it/s]Training FASTopic:  46%|████▋     | 93/200 [00:05<00:07, 15.18it/s]Training FASTopic:  48%|████▊     | 95/200 [00:05<00:07, 14.93it/s]Training FASTopic:  48%|████▊     | 97/200 [00:06<00:06, 15.76it/s]Training FASTopic:  50%|████▉     | 99/200 [00:06<00:06, 15.24it/s]Training FASTopic:  50%|█████     | 101/200 [00:06<00:06, 14.91it/s]Training FASTopic:  52%|█████▏    | 103/200 [00:06<00:06, 15.74it/s]Training FASTopic:  52%|█████▎    | 105/200 [00:06<00:06, 15.22it/s]Training FASTopic:  54%|█████▎    | 107/200 [00:06<00:06, 14.89it/s]Training FASTopic:  55%|█████▍    | 109/200 [00:06<00:05, 15.71it/s]Training FASTopic:  56%|█████▌    | 111/200 [00:07<00:05, 15.22it/s]Training FASTopic:  56%|█████▋    | 113/200 [00:07<00:05, 14.87it/s]Training FASTopic:  57%|█████▊    | 115/200 [00:07<00:05, 15.71it/s]Training FASTopic:  58%|█████▊    | 117/200 [00:07<00:05, 15.22it/s]Training FASTopic:  60%|█████▉    | 119/200 [00:07<00:05, 14.87it/s]Training FASTopic:  60%|██████    | 121/200 [00:07<00:05, 15.75it/s]Training FASTopic:  62%|██████▏   | 123/200 [00:07<00:05, 15.24it/s]Training FASTopic:  62%|██████▎   | 125/200 [00:07<00:05, 14.96it/s]Training FASTopic:  64%|██████▎   | 127/200 [00:08<00:04, 15.86it/s]Training FASTopic:  64%|██████▍   | 129/200 [00:08<00:04, 15.32it/s]Training FASTopic:  66%|██████▌   | 131/200 [00:08<00:04, 14.96it/s]Training FASTopic:  66%|██████▋   | 133/200 [00:08<00:04, 15.94it/s]Training FASTopic:  68%|██████▊   | 135/200 [00:08<00:04, 15.34it/s]Training FASTopic:  68%|██████▊   | 137/200 [00:08<00:04, 15.02it/s]Training FASTopic:  70%|██████▉   | 139/200 [00:08<00:03, 15.91it/s]Training FASTopic:  70%|███████   | 141/200 [00:08<00:03, 15.34it/s]Training FASTopic:  72%|███████▏  | 143/200 [00:09<00:03, 15.02it/s]Training FASTopic:  72%|███████▎  | 145/200 [00:09<00:03, 15.87it/s]Training FASTopic:  74%|███████▎  | 147/200 [00:09<00:03, 15.33it/s]Training FASTopic:  74%|███████▍  | 149/200 [00:09<00:03, 14.96it/s]Training FASTopic:  76%|███████▌  | 151/200 [00:09<00:03, 15.79it/s]Training FASTopic:  76%|███████▋  | 153/200 [00:09<00:03, 15.27it/s]Training FASTopic:  78%|███████▊  | 155/200 [00:09<00:03, 14.90it/s]Training FASTopic:  78%|███████▊  | 157/200 [00:10<00:02, 15.85it/s]Training FASTopic:  80%|███████▉  | 159/200 [00:10<00:02, 15.36it/s]Training FASTopic:  80%|████████  | 161/200 [00:10<00:02, 14.96it/s]Training FASTopic:  82%|████████▏ | 163/200 [00:10<00:02, 15.81it/s]Training FASTopic:  82%|████████▎ | 165/200 [00:10<00:02, 15.28it/s]Training FASTopic:  84%|████████▎ | 167/200 [00:10<00:02, 14.94it/s]Training FASTopic:  84%|████████▍ | 169/200 [00:10<00:01, 15.79it/s]Training FASTopic:  86%|████████▌ | 171/200 [00:10<00:01, 15.27it/s]Training FASTopic:  86%|████████▋ | 173/200 [00:11<00:01, 14.90it/s]Training FASTopic:  88%|████████▊ | 175/200 [00:11<00:01, 15.68it/s]Training FASTopic:  88%|████████▊ | 177/200 [00:11<00:01, 15.19it/s]Training FASTopic:  90%|████████▉ | 179/200 [00:11<00:01, 14.87it/s]Training FASTopic:  90%|█████████ | 181/200 [00:11<00:01, 15.73it/s]Training FASTopic:  92%|█████████▏| 183/200 [00:11<00:01, 15.22it/s]Training FASTopic:  92%|█████████▎| 185/200 [00:11<00:01, 14.88it/s]Training FASTopic:  94%|█████████▎| 187/200 [00:11<00:00, 15.78it/s]Training FASTopic:  94%|█████████▍| 189/200 [00:12<00:00, 15.26it/s]Training FASTopic:  96%|█████████▌| 191/200 [00:12<00:00, 14.97it/s]Training FASTopic:  96%|█████████▋| 193/200 [00:12<00:00, 15.88it/s]Training FASTopic:  98%|█████████▊| 195/200 [00:12<00:00, 15.32it/s]Training FASTopic:  98%|█████████▊| 197/200 [00:12<00:00, 14.94it/s]Training FASTopic: 100%|█████████▉| 199/200 [00:12<00:00, 15.88it/s]Training FASTopic: 100%|██████████| 200/200 [00:12<00:00, 15.59it/s]
+  DONE: NPMI=-0.2080 TD=0.9933 Acc=0.8138 t=35.1s
+
+======================================================================
+EXTENDED BASELINES SUMMARY
+======================================================================
+Model              Dataset      NPMI      TD     Acc   AU
+---------------------------------------------------------
+  BERTopic         20NG       0.0995  0.7733  0.4579    4
+  FASTopic         20NG      -0.0245  0.9880  0.6849    0
+  BERTopic         NYT        0.1688  0.9240  0.6285    6
+  FASTopic         NYT       -0.0508  1.0000  0.7854    0
+  BERTopic         IMDB      -0.3896  0.0520  0.5393    2
+  FASTopic         IMDB      -0.2080  0.9933  0.8138    0
+
+Done.

@@ -1,0 +1,213 @@
+\relax 
+\citation{kingma2014vae}
+\citation{srivastava2017,dieng2020,card2018,wu2023}
+\citation{cremer2018}
+\citation{cremer2018}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{}\protected@file@percent }
+\newlabel{sec:intro}{{1}{1}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{The amortization gap.}{1}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Our approach.}{1}{}\protected@file@percent }
+\citation{miao2016nvdm}
+\citation{srivastava2017}
+\citation{dieng2020}
+\citation{card2018}
+\citation{bianchi2021}
+\citation{wu2023}
+\citation{grootendorst2022}
+\citation{wu2024fastopic}
+\citation{meng2022topclus}
+\citation{bardes2022vicreg}
+\@writefile{toc}{\contentsline {paragraph}{Main finding.}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Contributions.}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Scope and limitations of this paper.}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{2}{}\protected@file@percent }
+\newlabel{sec:related}{{2}{2}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{VAE-Based Neural Topic Models.}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Recent non-VAE topic models.}{2}{}\protected@file@percent }
+\citation{cremer2018}
+\citation{kim2018}
+\citation{marino2018}
+\citation{hoffman2017}
+\citation{ruiz2019}
+\citation{lecun2006}
+\citation{du2019}
+\citation{deng2020}
+\citation{nijkamp2019shortrun}
+\citation{pang2020}
+\citation{liu2025}
+\citation{dieng2020}
+\citation{miyato2018spectral}
+\@writefile{toc}{\contentsline {paragraph}{Self-supervised representation regularization.}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Addressing the amortization gap.}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Energy-Based Models.}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Method}{3}{}\protected@file@percent }
+\newlabel{sec:method}{{3}{3}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Generative Model}{3}{}\protected@file@percent }
+\newlabel{eq:prior}{{2}{3}{}{}{}}
+\newlabel{eq:likelihood}{{3}{3}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Energy Network}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Langevin Posterior Refinement (the Key Module)}{3}{}\protected@file@percent }
+\newlabel{sec:langevin}{{3.3}{3}{}{}{}}
+\newlabel{eq:langevin}{{4}{3}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Encoder imitation loss.}{3}{}\protected@file@percent }
+\newlabel{eq:imitation}{{5}{3}{}{}{}}
+\citation{nijkamp2019shortrun}
+\citation{bardes2022vicreg}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces EBM-LTM training. Setting $f_\alpha \equiv 0$ and $L_s=0$ gives the computationally cheaper \textbf  {ETM+Langevin} variant.}}{4}{}\protected@file@percent }
+\newlabel{alg:training}{{1}{4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Energy Prior Training}{4}{}\protected@file@percent }
+\newlabel{eq:cd}{{6}{4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Training Schedule}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}VICReg-Style Collapse Prevention}{4}{}\protected@file@percent }
+\newlabel{sec:vicreg}{{3.6}{4}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Variance term.}{4}{}\protected@file@percent }
+\newlabel{eq:vicreg_var}{{7}{4}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Covariance term.}{4}{}\protected@file@percent }
+\newlabel{eq:vicreg_cov}{{8}{4}{}{}{}}
+\citation{otto2000generalization}
+\citation{dalalyan2017theoretical}
+\citation{hornik1991}
+\@writefile{toc}{\contentsline {paragraph}{Combined regularizer.}{5}{}\protected@file@percent }
+\newlabel{eq:vicreg}{{9}{5}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Theoretical Analysis}{5}{}\protected@file@percent }
+\newlabel{sec:theory}{{4}{5}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Langevin Refinement Under Log-Sobolev Conditions}{5}{}\protected@file@percent }
+\newlabel{thm:amort_gap}{{4.1}{5}{}{}{}}
+\newlabel{eq:amort_bound}{{10}{5}{}{}{}}
+\newlabel{rmk:gap}{{4.2}{5}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Universal Approximation of EBM Priors}{5}{}\protected@file@percent }
+\newlabel{thm:universal}{{4.3}{5}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}On the Marginal Role of the EBM Prior}{5}{}\protected@file@percent }
+\citation{wu2023topmost}
+\citation{srivastava2017}
+\citation{dieng2020}
+\citation{wu2023}
+\citation{grootendorst2022}
+\citation{wu2024fastopic}
+\citation{lau2014}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Cross-Dataset Validation of the Convergence Bound}{6}{}\protected@file@percent }
+\newlabel{sec:cross_dataset_theory}{{4.4}{6}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Experiments}{6}{}\protected@file@percent }
+\newlabel{sec:experiments}{{5}{6}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Experimental Setup}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Datasets.}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Models compared.}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Metrics.}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Hyperparameters.}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Main Results}{6}{}\protected@file@percent }
+\newlabel{sec:main_results}{{5.2}{6}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{20NG.}{6}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Main performance ($K=50$). \textbf  {Bold}: best; \underline  {underline}: second best. Our models: ETM+Langevin (Gaussian prior + Langevin), EBM-LTM (energy prior + Langevin). AU = Active Units (all Langevin variants = 0 due to collapse; see Section~\ref {sec:collapse}).}}{7}{}\protected@file@percent }
+\newlabel{tab:main}{{1}{7}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{IMDb.}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{NYT.}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Summary.}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Computational cost.}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Extended Baseline Comparison: BERTopic and FASTopic}{7}{}\protected@file@percent }
+\newlabel{sec:ext_baselines}{{5.3}{7}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Extended comparison including cluster-based models. BERTopic uses TF-IDF+SVD embeddings (offline, no pretrained encoders). FASTopic uses optimal transport-based topic discovery. Both are evaluated under identical NPMI/TD/Acc metrics. $K=50$ for VAE models; BERTopic/FASTopic use $K=50$ target.}}{8}{}\protected@file@percent }
+\newlabel{tab:ext_baselines}{{2}{8}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Argument 1: Structural NPMI bias from hard clustering.}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Argument 2: Brittleness across corpus types.}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Argument 3: No held-out perplexity.}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Multi-Seed Robustness}{8}{}\protected@file@percent }
+\newlabel{sec:multiseed}{{5.4}{8}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Multi-seed evaluation (3 seeds: 42, 123, 456) on 20NG and NYT ($K=50$). Mean$\pm $std reported. Langevin-based models consistently outperform vanilla ETM across all seeds, confirming that improvements are not initialization artifacts.}}{9}{}\protected@file@percent }
+\newlabel{tab:multiseed}{{3}{9}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Effect of $L_v$ on EBM-LTM (20NG, $K=50$). $L_v=0$: energy prior with pure amortized inference. All metrics improve monotonically.}}{9}{}\protected@file@percent }
+\newlabel{tab:langevin_ablation}{{4}{9}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Langevin Steps Ablation}{9}{}\protected@file@percent }
+\newlabel{sec:langevin_ablation}{{5.5}{9}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Factorial Ablation: Prior $\times $ Inference}{9}{}\protected@file@percent }
+\newlabel{sec:factorial}{{5.6}{9}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.7}VICReg Ablation: Addressing Posterior Collapse}{9}{}\protected@file@percent }
+\newlabel{sec:vicreg_ablation}{{5.7}{9}{}{}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Langevin ablation summary. All three metrics increase monotonically with $L_v$.}}{10}{}\protected@file@percent }
+\newlabel{fig:langevin_trend}{{2}{10}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces 2$\times $2 factorial ablation on 20NG ($K=50$). Langevin: $L_v=15$, $\delta _v=0.02$. \textbf  {Key result}: Langevin inference drives coherence; EBM prior adds diversity.}}{10}{}\protected@file@percent }
+\newlabel{tab:factorial}{{5}{10}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.8}Step Size Ablation}{10}{}\protected@file@percent }
+\newlabel{sec:stepsize_ablation}{{5.8}{10}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.9}Held-Out Perplexity}{10}{}\protected@file@percent }
+\newlabel{sec:ppl}{{5.9}{10}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Analysis}{10}{}\protected@file@percent }
+\newlabel{sec:analysis}{{6}{10}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Posterior Collapse and the AU=0 Problem}{10}{}\protected@file@percent }
+\newlabel{sec:collapse}{{6.1}{10}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces VICReg hyperparameter grid search on 20NG ($K=50$, seed=42, EBM-LTM). $\gamma =1.0$ fixed. AU$>0$ entries shown in \textbf  {bold}. Baseline (no VICReg): NPMI=$0.0242$, TD=$0.616$, AU=0, Acc=$0.489$.}}{11}{}\protected@file@percent }
+\newlabel{tab:vicreg}{{6}{11}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Best VICReg config multi-seed results ($\lambda _v^*, \lambda _c^*$ from grid search), 3 seeds on 20NG and NYT ($K=50$). Compared to baseline EBM-LTM (no VICReg).}}{11}{}\protected@file@percent }
+\newlabel{tab:vicreg_multiseed}{{7}{11}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}TD Decline and the Mode-Convergence Hypothesis}{11}{}\protected@file@percent }
+\newlabel{sec:td_decline}{{6.2}{11}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces ETM+Langevin step size ablation on 20NG ($K=50$, seed=42, $L_v=15$). Exploration distance $\|z_{L_v} - z_0\|_2$ measures how far Langevin moves from the amortized initializer. Optimal step size balances coherence and diversity.}}{12}{}\protected@file@percent }
+\newlabel{tab:stepsize}{{8}{12}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Held-out perplexity ($K=50$, seed=42). PPL-amort: encoder mean $z_0$ (no Langevin). PPL-refined: Langevin-refined $z_{L_v}$. Lower is better. BERTopic/FASTopic: no generative model, hence not applicable (---).}}{12}{}\protected@file@percent }
+\newlabel{tab:ppl}{{9}{12}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Unified explanation of three failure modes.}{12}{}\protected@file@percent }
+\citation{rezende2015}
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Active-Unit regularizer ablation on 20NG ($K=50$). AU = 0 at all weights; the regularizer modestly affects NPMI but cannot resolve the structural collapse.}}{13}{}\protected@file@percent }
+\newlabel{tab:au_ablation}{{10}{13}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Empirical Amortization Gap: Why Langevin Fails on IMDb}{13}{}\protected@file@percent }
+\newlabel{sec:amort_gap_empirical}{{6.3}{13}{}{}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Empirical amortization gap: how much Langevin refinement helps the encoder. $\Delta $L2: mean Euclidean distance $\|z_L - z_0\|$ (step size). $\Delta $logLik: mean log-likelihood improvement $\log p(x|z_L) - \log p(x|z_0)$ (benefit). IMDb shows the same step size but $10\times $ smaller benefit, confirming its encoder already approximates the posterior well.}}{13}{}\protected@file@percent }
+\newlabel{tab:amort_gap}{{11}{13}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Computational Overhead}{13}{}\protected@file@percent }
+\bibstyle{abbrvnat}
+\bibdata{ebmltm_refs}
+\bibcite{bardes2022vicreg}{{1}{2022}{{Bardes et~al.}}{{Bardes, Ponce, and LeCun}}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Limitations}{14}{}\protected@file@percent }
+\newlabel{sec:limitations}{{7}{14}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{14}{}\protected@file@percent }
+\newlabel{sec:conclusion}{{8}{14}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Future directions.}{14}{}\protected@file@percent }
+\bibcite{bianchi2021}{{2}{2021}{{Bianchi et~al.}}{{Bianchi, Terragni, and Hovy}}}
+\bibcite{card2018}{{3}{2018}{{Card et~al.}}{{Card, Tan, and Smith}}}
+\bibcite{cremer2018}{{4}{2018}{{Cremer et~al.}}{{Cremer, Li, and Duvenaud}}}
+\bibcite{dalalyan2017theoretical}{{5}{2017}{{Dalalyan}}{{}}}
+\bibcite{deng2020}{{6}{2020}{{Deng et~al.}}{{Deng, Bakhtin, Ott, Szlam, and Ranzato}}}
+\bibcite{dieng2020}{{7}{2020}{{Dieng et~al.}}{{Dieng, Ruiz, and Blei}}}
+\bibcite{du2019}{{8}{2019}{{Du and Mordatch}}{{}}}
+\bibcite{grootendorst2022}{{9}{2022}{{Grootendorst}}{{}}}
+\bibcite{hoffman2017}{{10}{2017}{{Hoffman}}{{}}}
+\bibcite{hornik1991}{{11}{1991}{{Hornik}}{{}}}
+\bibcite{kim2018}{{12}{2018}{{Kim et~al.}}{{Kim, Wiseman, Miller, Sontag, and Rush}}}
+\bibcite{kingma2014vae}{{13}{2014}{{Kingma and Welling}}{{}}}
+\bibcite{lau2014}{{14}{2014}{{Lau et~al.}}{{Lau, Newman, and Baldwin}}}
+\bibcite{lecun2006}{{15}{2006}{{LeCun et~al.}}{{LeCun, Chopra, Hadsell, Ranzato, and Huang}}}
+\bibcite{liu2025}{{16}{2025}{{Liu et~al.}}{{Liu, Lei, Sheng, Chen, and Gong}}}
+\bibcite{marino2018}{{17}{2018}{{Marino et~al.}}{{Marino, Yue, and Mandt}}}
+\bibcite{meng2022topclus}{{18}{2022}{{Meng et~al.}}{{Meng, Zhang, Huang, Zhang, and Han}}}
+\bibcite{miao2016nvdm}{{19}{2016}{{Miao et~al.}}{{Miao, Yu, and Blunsom}}}
+\bibcite{miyato2018spectral}{{20}{2018}{{Miyato et~al.}}{{Miyato, Kataoka, Koyama, and Yoshida}}}
+\bibcite{nijkamp2019shortrun}{{21}{2019}{{Nijkamp et~al.}}{{Nijkamp, Hill, Zhu, and Wu}}}
+\bibcite{otto2000generalization}{{22}{2000}{{Otto and Villani}}{{}}}
+\bibcite{pang2020}{{23}{2020}{{Pang et~al.}}{{Pang, Han, Nijkamp, Zhu, and Wu}}}
+\bibcite{rezende2015}{{24}{2015}{{Rezende and Mohamed}}{{}}}
+\bibcite{ruiz2019}{{25}{2019}{{Ruiz and Titsias}}{{}}}
+\bibcite{srivastava2017}{{26}{2017}{{Srivastava and Sutton}}{{}}}
+\bibcite{wu2023}{{27}{2023}{{Wu et~al.}}{{Wu, Nguyen, and Luu}}}
+\bibcite{wu2024fastopic}{{28}{2024{a}}{{Wu et~al.}}{{Wu, Nguyen, Zhang, Wang, and Luu}}}
+\bibcite{wu2023topmost}{{29}{2024{b}}{{Wu et~al.}}{{Wu, Pan, and Luu}}}
+\citation{otto2000generalization}
+\citation{dalalyan2017theoretical}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Full Proof of Theorem~\ref {thm:amort_gap}}{16}{}\protected@file@percent }
+\newlabel{app:proof}{{A}{16}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Setup.}{16}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 1: KL decay under the continuous Langevin SDE.}{16}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 2: KL to $W_2$ via Talagrand's inequality.}{16}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 3: Euler--Maruyama discretization.}{16}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Implementation Details}{16}{}\protected@file@percent }
+\newlabel{app:impl}{{B}{16}{}{}{}}
+\@writefile{toc}{\contentsline {paragraph}{Energy network.}{16}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Encoder.}{16}{}\protected@file@percent }
+\citation{dieng2020}
+\citation{nijkamp2019shortrun}
+\citation{grootendorst2022}
+\citation{wu2024fastopic}
+\citation{meng2022topclus}
+\@writefile{toc}{\contentsline {paragraph}{Decoder (ETM-style).}{17}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{MCMC efficiency.}{17}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Hyperparameter table.}{17}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Missing baselines.}{17}{}\protected@file@percent }
+\gdef \@abspage@last{17}

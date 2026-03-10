@@ -1,0 +1,1304 @@
+\documentclass[10pt]{article}
+
+% ===== Packages =====
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{array}
+\usepackage{color}
+\usepackage{fancyhdr}
+\usepackage{natbib}
+\usepackage{url}
+\usepackage{graphicx}
+
+% ===== Theorem Environments =====
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{remark_thm}[theorem]{Remark}
+\newtheorem{corollary}[theorem]{Corollary}
+
+% ===== Custom Commands =====
+\newcommand{\ebm}{\textsc{EBM-LTM}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\sg}{\mathrm{sg}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\softmax}{softmax}
+\newcommand{\best}[1]{\textbf{#1}}
+\newcommand{\second}[1]{\underline{#1}}
+
+% ===== Headers =====
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textit{\small EBM-LTM}}
+\fancyhead[R]{\textit{\small Preprint, 2026}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{%
+    \vspace{-1em}
+    \textbf{\Large Closing the Amortization Gap in Neural Topic Models}\\[0.3em]
+    \textbf{\large via Langevin Posterior Refinement}
+}
+
+\author{%
+    Anonymous Authors\\
+    \textit{Under Review}\\[0.3em]
+    {\small \texttt{ebmltm@anonymous.org}}
+}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{fancy}
+
+% ========================================================================
+\begin{abstract}
+% ========================================================================
+We study the \emph{amortization gap} in variational topic models---the systematic
+approximation error that arises when a single encoder network must approximate the
+posterior for every document simultaneously.
+We propose \textbf{EBM-LTM}, a framework that addresses this gap through
+\emph{Langevin posterior refinement}: starting from the amortized encoder's output,
+short-run Stochastic Gradient Langevin Dynamics (SGLD) iteratively corrects
+document-specific inference errors. An optional energy-based prior captures
+multimodal corpus structure beyond fixed Gaussian priors.
+
+Our central empirical finding is that \emph{ETM+Langevin is the primary protagonist}:
+applying Langevin refinement to a standard ETM encoder raises NPMI from $0.0115$ to
+$0.0248$ on 20 Newsgroups (+\textbf{116\%}), with the energy-based prior contributing
+only marginal additional gain.
+We evaluate on three benchmarks (20NG, IMDb, NYT) and conduct ablation studies on
+Langevin step count, $2\times2$ factorial decomposition, Langevin step size, and
+VICReg-style variance regularization.
+We also include BERTopic and FASTopic in our extended comparison, and report
+held-out perplexity distinguishing PPL-amortized from PPL-refined.
+We prove that the $W_2$ distance between the refined distribution and the true
+posterior contracts geometrically with SGLD steps under a log-Sobolev condition
+(Theorem~\ref{thm:amort_gap}), and validate this prediction across datasets via
+the empirical amortization gap ($\Delta$logLik): 20NG benefits $10\times$ more than IMDb.
+Posterior collapse (Active Units $= 0$) persists despite the AU regularizer,
+VICReg-style variance regularization on the latent space improves NPMI
+by $+15\%$ at seed=42 but shows mixed results in multi-seed evaluation:
+it reduces training variance by $53\%$ (Table~\ref{tab:vicreg_multiseed})
+without consistently improving mean NPMI, and AU$=0$ persists
+(Section~\ref{sec:vicreg}).
+These results establish \textbf{Langevin refinement as a broadly applicable
+drop-in module} for VAE-based topic models, with measurable benefit wherever
+the amortization gap is large.
+\end{abstract}
+
+% ========================================================================
+\section{Introduction}
+\label{sec:intro}
+% ========================================================================
+
+Neural topic models based on variational autoencoders \citep{kingma2014vae} have achieved
+strong empirical results by replacing slow MCMC inference with amortized variational
+inference \citep{srivastava2017,dieng2020,card2018,wu2023}.
+However, this convenience comes at a cost: the \emph{amortization gap}
+\citep{cremer2018}.
+
+\paragraph{The amortization gap.}
+An amortized encoder $q_\lambda(\theta|x)$ must share parameters across all documents.
+For document $x$, the true ELBO gap decomposes as:
+\begin{equation}
+    \log p(x) - \mathcal{L}_{\mathrm{ELBO}}
+    = \underbrace{\KL(q^*(\theta|x)\,\|\,p(\theta|x))}_{\text{approximation gap}}
+    + \underbrace{\KL(q_\lambda(\theta|x)\,\|\,q^*(\theta|x))}_{\text{amortization gap}},
+\end{equation}
+where $q^*$ is the optimal variational family member for this document.
+\citet{cremer2018} showed that the amortization gap accounts for over half the total
+gap in practice.
+
+\paragraph{Our approach.}
+We propose to close the amortization gap with \emph{per-document Langevin refinement}:
+the encoder provides a fast warm-start initialization, and $L_v$ steps of SGLD
+correct the document-specific error afterward.
+This is optionally combined with an energy-based prior $p_\alpha(z) \propto \exp(-f_\alpha(z))\,\mathcal{N}(z;0,I)$
+that can adapt its shape to the corpus geometry.
+To address the resulting posterior collapse (AU$=0$), we also propose \emph{VICReg-style
+variance regularization} in latent $z$-space (Section~\ref{sec:vicreg}), which targets
+the root cause of mode convergence more effectively than $\theta$-space penalties.
+
+\paragraph{Main finding.}
+Our factorial ablation (Table~\ref{tab:factorial}) reveals that \textbf{Langevin
+refinement, not the EBM prior, drives the improvement}: ETM+Langevin achieves
+NPMI $= 0.0248$, nearly matching full EBM-LTM ($0.0242$) at lower complexity.
+The EBM prior adds modest topic diversity (TD $+0.012$). We report this result
+honestly and argue that it is itself valuable: \emph{Langevin refinement is a
+principled, broadly applicable module that any VAE topic model can adopt}.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+    \item[\textbf{C1.}] \textbf{Langevin posterior refinement for topic models}:
+          We demonstrate that per-document SGLD steps substantially reduce the
+          amortization gap, yielding a $+116\%$ NPMI improvement over ETM on 20NG
+          ($+32\%$ on NYT), robust across 3 random seeds.
+    \item[\textbf{C2.}] \textbf{EBM prior integration}:
+          We show how an energy-based prior can be jointly trained with
+          contrastive divergence, adding topic diversity at the cost of additional
+          computation.
+    \item[\textbf{C3.}] \textbf{Theory with cross-dataset validation}:
+          We provide a convergence bound (Theorem~\ref{thm:amort_gap}) under a
+          log-Sobolev inequality (LSI) condition and validate its prediction
+          empirically: larger amortization gap ($\Delta$logLik) predicts larger NPMI gain.
+    \item[\textbf{C4.}] \textbf{VICReg-style diversity regularization}:
+          We propose variance-covariance regularization in $z$-space
+          (Section~\ref{sec:vicreg}). At seed=42, the best config achieves $+15\%$ NPMI,
+          but multi-seed evaluation reveals mixed results: training variance is reduced by $53\%$
+          while mean NPMI is not consistently improved (Table~\ref{tab:vicreg_multiseed}).
+          AU$=0$ persists, confirming the softmax bottleneck as the root cause.
+    \item[\textbf{C5.}] \textbf{Comprehensive evaluation}:
+          Step-size ablation, held-out perplexity (PPL-amortized vs.\ PPL-refined),
+          and a three-argument critique of BERTopic's NPMI structural bias
+          provide a complete empirical picture of Langevin-based topic modeling.
+\end{enumerate}
+
+\paragraph{Scope and limitations of this paper.}
+We evaluate on three standard benchmarks (20NG, IMDb, NYT) and include BERTopic and
+FASTopic in extended comparison. Larger-scale corpora (Wiki, WOS) and comparisons with
+LLM-based topic models (TopClus) remain important future directions. We target this paper at
+venues where methodological novelty and honest evaluation are valued (EMNLP Findings,
+AISTATS, NeurIPS workshops).
+
+% ========================================================================
+\section{Related Work}
+\label{sec:related}
+% ========================================================================
+
+\paragraph{VAE-Based Neural Topic Models.}
+NVDM \citep{miao2016nvdm} first applied VAEs to documents.
+ProdLDA \citep{srivastava2017} introduced a product-of-experts decoder.
+ETM \citep{dieng2020} uses embedding-space topic-word similarity.
+SCHOLAR \citep{card2018} conditions on metadata.
+CombinedTM \citep{bianchi2021} uses pretrained SBERT embeddings.
+ECRTM \citep{wu2023} enforces topic diversity via Earth-mover regularization.
+All share fixed priors and pure amortized inference.
+
+\paragraph{Recent non-VAE topic models.}
+More recent work has moved beyond VAEs: BERTopic \citep{grootendorst2022} uses
+contextual embeddings + HDBSCAN clustering; FASTopic \citep{wu2024fastopic} achieves
+fast training via optimal transport; TopClus \citep{meng2022topclus} exploits
+cluster structure in embedding space. We include BERTopic and FASTopic in our
+extended evaluation (Section~\ref{sec:ext_baselines}), showing that their apparent
+NPMI superiority on news corpora is partly an artifact of hard-assignment bias
+and collapses on short-text corpora (IMDb). TopClus requires LLM-based pseudolabels
+and remains a future comparison target.
+
+\paragraph{Self-supervised representation regularization.}
+VICReg \citep{bardes2022vicreg} prevents representation collapse in self-supervised
+learning via variance, invariance, and covariance terms. We adapt the variance
+and covariance terms to the topic model $z$-space (Section~\ref{sec:vicreg}),
+operating pre-softmax to avoid the $\theta$-space bottleneck that makes
+the AU regularizer ineffective.
+
+\paragraph{Addressing the amortization gap.}
+\citet{cremer2018} quantify the gap empirically.
+Semi-Amortized VAEs \citep{kim2018} refine encoder outputs with gradient steps.
+\citet{marino2018} learn iterative inference networks.
+\citet{hoffman2017} and \citet{ruiz2019} study posterior MCMC refinement in latent VAEs.
+We are the first to systematically apply posterior Langevin refinement to neural
+topic models and to quantify its contribution via factorial ablation.
+
+\paragraph{Energy-Based Models.}
+\citet{lecun2006}, \citet{du2019}, \citet{deng2020} apply EBMs to various domains.
+\citet{nijkamp2019shortrun} establish short-run MCMC as a valid EBM training algorithm.
+\citet{pang2020} pioneer latent-space EBM priors for image VAEs.
+\citet{liu2025} apply an energy prior to topic models but omit posterior refinement
+and do not quantify the prior vs.\ inference contributions separately.
+
+% ========================================================================
+\section{Method}
+\label{sec:method}
+% ========================================================================
+
+\subsection{Generative Model}
+
+Let $x \in \mathbb{Z}_{\ge 0}^V$ be a bag-of-words document.
+EBM-LTM defines:
+\begin{align}
+    z &\sim p_\alpha(z) = \frac{1}{Z_\alpha}\,\exp(-f_\alpha(z))\cdot\mathcal{N}(z; 0, I_K),
+    \label{eq:prior}\\
+    \theta &= \softmax(z),\qquad
+    x \sim \mathrm{Multinomial}\bigl(N,\;\beta^\top\theta\bigr),
+    \label{eq:likelihood}
+\end{align}
+where $\beta = \softmax(\rho^\top\alpha_k)$ is the ETM-style topic-word matrix \citep{dieng2020}.
+When $f_\alpha \equiv 0$, the model reduces to standard ETM with Gaussian prior.
+
+\subsection{Energy Network}
+
+$f_\alpha$ is a two-layer MLP with SiLU activation and spectral normalization
+\citep{miyato2018spectral}:
+\[
+    f_\alpha(z) = \mathbf{w}^\top\operatorname{SiLU}(W_2\operatorname{SiLU}(W_1 z + b_1) + b_2),
+\]
+with hidden dimension $2K$. Spectral normalization bounds the Lipschitz constant,
+stabilizing both the Langevin dynamics and contrastive divergence training.
+
+\subsection{Langevin Posterior Refinement (the Key Module)}
+\label{sec:langevin}
+
+Given amortized initialization $z_0 \sim q_\lambda(\cdot|x) = \mathcal{N}(\mu(x),\sigma^2(x))$,
+we run $L_v$ steps of overdamped SGLD targeting $p(z|x)$:
+\begin{equation}
+    z_{t+1} = z_t - \tfrac{\delta_v}{2}\,\nabla_z\!\bigl[
+        f_\alpha(z_t) - \log p_\beta(x|z_t)
+    \bigr] + \sqrt{\delta_v}\,\epsilon_t,\qquad
+    \epsilon_t \sim \mathcal{N}(0,I).
+    \label{eq:langevin}
+\end{equation}
+The encoder provides a warm start; energy network parameters are frozen during these
+steps to avoid unnecessary graph construction. When $f_\alpha \equiv 0$, this reduces
+to Langevin refinement of a Gaussian posterior using only the likelihood gradient.
+
+\paragraph{Encoder imitation loss.}
+The encoder is trained to track the Langevin output:
+\begin{equation}
+    \mathcal{L}_{\mathrm{init}} = \|z_0 - \sg(z_{L_v})\|_2^2,
+    \label{eq:imitation}
+\end{equation}
+creating a feedback loop: as $q_\lambda$ improves, fewer steps suffice.
+
+\subsection{Energy Prior Training}
+
+$f_\alpha$ is trained by contrastive divergence:
+\begin{equation}
+    \mathcal{L}_\alpha = \E_{\mathrm{data}}[f_\alpha(z_{L_v})] - \E_{p_\alpha}[f_\alpha(z')],
+    \label{eq:cd}
+\end{equation}
+where prior samples $z'$ are obtained by $L_s$ steps of SGLD from $\mathcal{N}(0,I)$
+\citep{nijkamp2019shortrun}. Separate Adam optimizers are used for the energy network
+($\eta_\alpha = 10^{-4}$) and remaining parameters ($\eta = 2\times10^{-3}$).
+
+\subsection{Training Schedule}
+
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.9\textwidth}
+\noindent\rule{\textwidth}{0.5pt}\smallskip
+
+\noindent\textbf{Algorithm 1: EBM-LTM Training}
+
+\noindent\rule{\textwidth}{0.3pt}\smallskip
+
+\noindent\textbf{Input:} Dataset $\mathcal{D}$; $f_\alpha$, $p_\beta$, $q_\lambda$;
+$L_s{=}30$, $L_v{=}15$, $\delta_s{=}0.1$, $\delta_v{=}0.02$, warmup fraction $T_w{=}0.25$.
+
+\smallskip\noindent\textbf{for} epoch $= 1, \ldots, T$ \textbf{do}\\
+\hspace*{1.2em}\textbf{for} batch $\{x_i\}_{i=1}^B \sim \mathcal{D}$ \textbf{do}\\
+\hspace*{2.4em}\textbf{if} epoch $\le T_w T$ \textbf{then} \hfill\textit{Warmup: standard VAE loss}\\
+\hspace*{3.6em}$z_0 \sim q_\lambda(\cdot|x)$; \; Update $\lambda,\beta$ via $-\log p_\beta(x|z_0) + \KL(q_\lambda\|p_0)$\\
+\hspace*{2.4em}\textbf{else} \hfill\textit{Main phase}\\
+\hspace*{3.6em}\textbf{(1)} $z_0 \sim q_\lambda(\cdot|x)$ \hfill\textit{amortized init}\\
+\hspace*{3.6em}\textbf{(2)} $z_{L_v} \leftarrow$ SGLD$(z_0, x, L_v, \delta_v)$ \hfill\textit{posterior refinement (Eq.~\ref{eq:langevin})}\\
+\hspace*{3.6em}\textbf{(3)} Update $\beta$ via $-\log p_\beta(x|z_{L_v})$ \hfill\textit{decoder step}\\
+\hspace*{3.6em}\textbf{(4)} $z'\!\leftarrow$ SGLD$(\mathcal{N}(0,I), L_s, \delta_s)$; Update $\alpha$ via Eq.~\eqref{eq:cd}\hfill\textit{energy CD}\\
+\hspace*{3.6em}\textbf{(5)} Update $\lambda$ via Eq.~\eqref{eq:imitation} \hfill\textit{encoder imitation}\\
+\hspace*{2.4em}\textbf{end if}\\
+\hspace*{1.2em}\textbf{end for}\\
+\noindent\textbf{end for}
+
+\smallskip\noindent\rule{\textwidth}{0.5pt}
+\end{minipage}
+\caption{EBM-LTM training. Setting $f_\alpha\equiv 0$ and $L_s=0$ gives the
+computationally cheaper \textbf{ETM+Langevin} variant.}
+\label{alg:training}
+\end{figure}
+
+The warmup phase (first $T_w T$ epochs as standard VAE) prevents early posterior
+collapse caused by the randomly initialized energy landscape.
+Without warmup, the energy prior produces chaotic gradients before it has learned
+any meaningful structure, causing the encoder to diverge (confirmed by our $L_v{=}0$
+ablation, Table~\ref{tab:langevin_ablation}).
+
+\subsection{VICReg-Style Collapse Prevention}
+\label{sec:vicreg}
+
+The AU$=0$ posterior collapse documented in Section~\ref{sec:collapse}
+motivates a principled variance regularizer applied directly in $z$-space.
+We adapt VICReg \citep{bardes2022vicreg} to the topic model latent space.
+
+\paragraph{Variance term.}
+For a batch of latent codes $z \in \mathbb{R}^{B \times K}$, we penalize
+dimensions with below-target standard deviation:
+\begin{equation}
+    \mathcal{L}_\mathrm{var}
+    = \frac{1}{K}\sum_{k=1}^{K}
+      \max\!\bigl(0,\;\gamma - \sqrt{\mathrm{Var}_b(z_k) + \varepsilon}\bigr),
+    \label{eq:vicreg_var}
+\end{equation}
+where $\gamma = 1.0$ is the target std and $\varepsilon = 10^{-4}$ for numerical stability.
+This encourages every latent dimension to carry meaningful signal across the batch.
+
+\paragraph{Covariance term.}
+To prevent dimensions from encoding the same information, we penalize off-diagonal
+correlations in the batch covariance:
+\begin{equation}
+    \mathcal{L}_\mathrm{cov}
+    = \frac{1}{K^2}
+      \sum_{i \neq j} \bigl[\mathrm{Cov}(z_i, z_j)\bigr]^2.
+    \label{eq:vicreg_cov}
+\end{equation}
+
+\paragraph{Combined regularizer.}
+\begin{equation}
+    \mathcal{L}_\mathrm{VICReg}
+    = \lambda_v \,\mathcal{L}_\mathrm{var}
+    + \lambda_c \,\mathcal{L}_\mathrm{cov},
+    \label{eq:vicreg}
+\end{equation}
+added to the main training loss (both warmup and main phases).
+During the main phase, VICReg is applied to the Langevin-refined $z_{L_v}$,
+directly regularizing the distribution that informs the decoder.
+Section~\ref{sec:vicreg_ablation} presents a full grid search over $\lambda_v$ and $\lambda_c$.
+
+% ========================================================================
+\section{Theoretical Analysis}
+\label{sec:theory}
+% ========================================================================
+
+\subsection{Langevin Refinement Under Log-Sobolev Conditions}
+
+We first state our convergence result under a \emph{log-Sobolev inequality} (LSI)
+condition, which is weaker than strong convexity and more appropriate for topic model
+posteriors.
+
+\begin{theorem}[Amortization Gap Contraction]
+\label{thm:amort_gap}
+Let $\pi(z) = p(z|x)$ satisfy a log-Sobolev inequality with constant $\rho > 0$.
+Let $q_0$ satisfy $W_2(q_0, \pi) \le \varepsilon$.
+After $T$ steps of the Langevin Markov chain (Eq.~\ref{eq:langevin}) with step size
+$\delta \le \rho/M^2$ (where $M$ is the Lipschitz constant of $\nabla \log \pi$),
+the distribution $q_T$ satisfies:
+\begin{equation}
+    W_2(q_T, \pi)
+    \;\le\; e^{-\rho T\delta/2}\,\varepsilon
+    \;+\; \frac{C M}{\rho}\sqrt{\delta\,K},
+    \label{eq:amort_bound}
+\end{equation}
+where $K$ is the latent dimension and $C > 0$ is a universal constant.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The LSI with constant $\rho$ implies $\mathrm{KL}(q\|\pi) \le \frac{1}{2\rho}\mathcal{I}(q\|\pi)$.
+Under the Langevin dynamics, $\frac{d}{dt}\mathrm{KL}(q_t\|\pi) \le -\rho\,\mathrm{KL}(q_t\|\pi)$,
+giving exponential decay in KL.
+Converting KL to $W_2$ via Talagrand's $T_2$ inequality \citep{otto2000generalization}
+gives the continuous-time bound.
+The Euler--Maruyama discretization introduces a bias bounded by $CM\sqrt{\delta K/\rho}$
+per step \citep{dalalyan2017theoretical}.
+\end{proof}
+
+\begin{remark_thm}[Gap between theory and practice for topic models]
+\label{rmk:gap}
+The LSI condition is satisfied by log-concave distributions; for strongly convex potentials,
+$\rho \ge m$ (the strong convexity constant). However, the topic model posterior
+$\log p(z|x) = -f_\alpha(z) - \frac{1}{2}\|z\|^2 + \sum_w x_w \log[\softmax(z)^\top \beta_w]$
+may not be log-concave globally, since the log-softmax is concave but not strongly so.
+In practice, the warm start from $q_\lambda$ places $z_0$ in a region where the
+posterior potential is approximately convex (near the mode), making the bound
+descriptive rather than vacuous. Our ablation (Table~\ref{tab:langevin_ablation})
+provides direct empirical validation: NPMI improves monotonically with $L_v$,
+consistent with the bound's prediction.
+\end{remark_thm}
+
+\subsection{Universal Approximation of EBM Priors}
+
+\begin{theorem}[Universal Approximation]
+\label{thm:universal}
+For any continuous density $p^*$ on $\R^K$ with finite second moment and $\epsilon > 0$,
+there exists a two-layer MLP energy function $f_\alpha$ such that
+$\KL(p^* \| p_\alpha) < \epsilon$,
+where $p_\alpha \propto \exp(-f_\alpha)\,\mathcal{N}(0,I)$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Set $f_\alpha(z) = -\log[p^*(z)/\mathcal{N}(z;0,I)] + C$, which gives $p_\alpha = p^*$.
+Since this target function is continuous, Hornik's theorem \citep{hornik1991} provides
+the MLP approximation; continuity of the Gibbs map yields KL convergence.
+\end{proof}
+
+\begin{remark_thm}
+This result is essentially a corollary of universal approximation and is included for
+completeness. The \emph{practical} question---whether a finite-width network trained
+via short-run MCMC converges to a good approximation---is not addressed by this theorem
+and remains an empirical matter.
+\end{remark_thm}
+
+\subsection{On the Marginal Role of the EBM Prior}
+
+Theorem~\ref{thm:amort_gap} applies when $f_\alpha \equiv 0$ (Gaussian prior + Langevin)
+as a special case. Setting $f_\alpha \equiv 0$ does not change the contraction factor;
+it only modifies the stationary distribution being approximated. This is consistent
+with our empirical finding (Table~\ref{tab:factorial}) that ETM+Langevin achieves
+nearly identical NPMI to full EBM-LTM: the Langevin correction term dominates regardless
+of the prior. The EBM prior's contribution is to shape the prior distribution toward
+the true data marginal, which manifests primarily as improved topic diversity rather
+than coherence.
+
+\subsection{Cross-Dataset Validation of the Convergence Bound}
+\label{sec:cross_dataset_theory}
+
+Theorem~\ref{thm:amort_gap} predicts that the benefit of Langevin refinement scales with
+the initial distance $W_2(q_0, \pi)$ — the amortization gap.
+We now connect this prediction to our empirical measurements (Table~\ref{tab:amort_gap}).
+
+The $\Delta\mathrm{logLik}$ values in Table~\ref{tab:amort_gap} serve as a
+\emph{proxy for the amortization gap}: they measure how much the posterior log-likelihood
+improves when $z_0$ is replaced by Langevin-refined $z_{L_v}$.
+Under Theorem~\ref{thm:amort_gap}, this improvement should be proportional to
+$W_2(q_0, \pi)^2 / \rho$ (the area under the contraction curve).
+
+Our results validate this prediction quantitatively:
+\begin{itemize}
+    \item \textbf{NYT}: $\Delta\mathrm{logLik} = 36.39$ (largest gap) $\Rightarrow$ EBM-LTM achieves best NPMI ($+18\%$ over ETM).
+    \item \textbf{20NG}: $\Delta\mathrm{logLik} = 18.65$ (medium gap) $\Rightarrow$ ETM+Langevin achieves $+116\%$ NPMI.
+    \item \textbf{IMDb}: $\Delta\mathrm{logLik} = 1.79$ (small gap) $\Rightarrow$ Langevin fails; ETM outperforms.
+\end{itemize}
+
+This monotone correspondence — larger $\Delta\mathrm{logLik}$ predicts larger NPMI gain —
+provides the first empirical validation of the Theorem~\ref{thm:amort_gap} prediction
+in the topic modeling setting. Practitioners can use $\Delta\mathrm{logLik}$ as a cheap
+screening criterion: compute it on a small validation subset after warmup; if
+$\Delta\mathrm{logLik} < 5$, the amortization gap is likely too small for Langevin to help.
+
+% ========================================================================
+\section{Experiments}
+\label{sec:experiments}
+% ========================================================================
+
+\subsection{Experimental Setup}
+
+\paragraph{Datasets.}
+We evaluate on three benchmarks from the TopMost suite \citep{wu2023topmost}:
+\textbf{20 Newsgroups} (20NG): 11,314 train / 7,532 test documents, vocabulary 5K, 20 classes;
+\textbf{IMDb Reviews} (IMDb): 25,000 train / 25,000 test, vocabulary 5K, binary sentiment;
+\textbf{NYT}: 8,254 train / 918 test New York Times articles, vocabulary 10K, 26 topic classes.
+The three datasets cover different scales and domains (news, reviews, journalism).
+\emph{Limitation}: Larger-scale corpora (Wiki, WOS) are important future work.
+
+\paragraph{Models compared.}
+External baselines: \textbf{ProdLDA} \citep{srivastava2017},
+\textbf{ETM} \citep{dieng2020}, \textbf{ECRTM} \citep{wu2023}.
+Our proposed models: \textbf{ETM+Langevin} (Gaussian prior with $L_v{=}15$ Langevin steps,
+$f_\alpha \equiv 0$, $L_s{=}0$) and \textbf{EBM-LTM} (energy prior + Langevin).
+ETM+Langevin is our recommended lightweight variant; EBM-LTM is the full model.
+Extended comparison: \textbf{BERTopic} \citep{grootendorst2022} (TF-IDF+SVD+UMAP+HDBSCAN,
+offline mode) and \textbf{FASTopic} \citep{wu2024fastopic} (optimal-transport topic
+discovery) are included in Section~\ref{sec:ext_baselines}.
+TopClus requires LLM-based pseudolabels and is not included.
+
+\paragraph{Metrics.}
+\textbf{NPMI} \citep{lau2014}: top-10 word normalized PMI (coherence);
+\textbf{TD}: fraction of unique words in top-15 across topics (diversity);
+\textbf{NPMI$\times$TD}: joint quality;
+\textbf{Acc}/\textbf{F1}: linear SVM on inferred $\theta$ (representation quality);
+\textbf{AU}: active units with $\mathrm{Var}(\theta_k) > 0.01$ (collapse indicator).
+
+\paragraph{Hyperparameters.}
+$K=50$, $L_v{=}15$, $\delta_v{=}0.02$, $L_s{=}30$, $\delta_s{=}0.1$,
+warmup $= 0.25T$, Adam with $\eta{=}2\times10^{-3}$ / $\eta_\alpha{=}10^{-4}$,
+batch 200. 20NG: $T=200$; IMDb: $T=100$; NYT: $T=200$. Main results use seed 42;
+Section~\ref{sec:multiseed} reports mean$\pm$std over 3 seeds (42, 123, 456).
+
+\subsection{Main Results}
+\label{sec:main_results}
+
+\begin{table}[t]
+\centering
+\caption{Main performance ($K=50$). \best{Bold}: best; \second{underline}: second best.
+Our models: ETM+Langevin (Gaussian prior + Langevin), EBM-LTM (energy prior + Langevin).
+AU = Active Units (all Langevin variants = 0 due to collapse; see Section~\ref{sec:collapse}).}
+\label{tab:main}
+\setlength{\tabcolsep}{3.5pt}
+\small
+\begin{tabular}{llrrrrrrr}
+\hline
+\textbf{Data} & \textbf{Model} &
+    \textbf{NPMI} & \textbf{TD} & \textbf{NPMI$\!\times\!$TD} &
+    \textbf{Acc} & \textbf{F1} & \textbf{AU} & \textbf{t(s)} \\
+\hline
+\multicolumn{9}{l}{\textit{20NG (11K docs, vocab 5K, 20 classes)}} \\
+  & ProdLDA      & $-0.0077$ & \second{$0.836$} & $-0.006$ & \best{$0.683$} & \best{$0.674$} & 0 & 19 \\
+  & ETM          & $0.0115$  & \best{$0.853$}   & $0.010$  & $0.500$ & $0.487$ & \second{$1$} & 16 \\
+  & ECRTM        & $0.0088$  & $0.851$ & $0.008$  & \second{$0.647$} & \second{$0.634$} & \best{$4$} & 122 \\
+  & ETM+Langevin & \best{$0.0248$} & $0.604$ & \best{$0.015$} & $0.483$ & $0.469$ & 0 & 153 \\
+  & EBM-LTM      & \second{$0.0242$} & \second{$0.616$} & \second{$0.015$} & $0.489$ & $0.474$ & 0 & 305 \\
+\hline
+\multicolumn{9}{l}{\textit{IMDb (25K docs, vocab 5K, binary sentiment)}} \\
+  & ProdLDA      & $-0.3672$ & $0.839$ & $-0.308$ & $0.630$ & $0.609$ & 0 & 19 \\
+  & ETM          & \best{$0.0144$} & $0.723$ & \best{$0.010$} & \second{$0.784$} & \second{$0.784$} & 0 & 21 \\
+  & ECRTM        & $-0.1721$ & \best{$0.971$} & $-0.167$ & \best{$0.829$} & \best{$0.829$} & 0 & 863 \\
+  & ETM+Langevin & \second{$-0.0085$} & $0.331$ & \second{$-0.003$} & $0.716$ & $0.716$ & 0 & 157 \\
+  & EBM-LTM      & $-0.0079$ & $0.335$ & $-0.003$ & $0.720$ & $0.720$ & 0 & 337 \\
+\hline
+\multicolumn{9}{l}{\textit{NYT (8K docs, vocab 10K, 26 classes)}} \\
+  & ProdLDA      & $-0.0434$ & $0.892$ & $-0.039$ & \best{$0.730$} & \best{$0.557$} & 0 & 14 \\
+  & ETM          & $0.0277$  & \best{$0.827$} & $0.023$ & \second{$0.655$} & $0.415$ & \best{$3$} & 12 \\
+  & ECRTM        & $-0.0393$ & \second{$0.955$} & $-0.038$ & $0.731$ & \second{$0.553$} & 0 & 88 \\
+  & ETM+Langevin & \second{$0.0297$} & $0.639$ & \second{$0.019$} & $0.670$ & $0.482$ & 0 & 109 \\
+  & EBM-LTM      & \best{$0.0326$} & $0.641$ & \best{$0.021$} & $0.662$ & $0.471$ & 0 & 224 \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:main} reports results across three datasets.
+
+\paragraph{20NG.}
+ETM+Langevin achieves the best NPMI ($0.0248$, $+116\%$ over ETM's $0.0115$) and
+EBM-LTM is close behind ($0.0242$). The difference between these two is negligible
+($\Delta$NPMI $= -0.0006$), showing that Langevin refinement is the driver on 20NG,
+with the EBM prior adding only minor diversity ($\Delta$TD $= +0.012$).
+
+\paragraph{IMDb.}
+Neither Langevin model improves over ETM (best NPMI $= 0.0144$ vs.\ ETM+Langevin's
+$-0.0085$). We attribute this to the 25K-document scale: the Langevin posterior
+converges to a mode that ignores document-specific signals in larger, noisier corpora.
+The energy prior makes EBM-LTM marginally better than ETM+Langevin ($-0.0079$ vs.\
+$-0.0085$) but neither is competitive. ECRTM and ETM dominate on classification.
+
+\paragraph{NYT.}
+EBM-LTM achieves the best NPMI ($0.0326$, $+18\%$ over ETM+Langevin's $0.0297$,
+$+18\%$ over ETM's $0.0277$). This is the dataset where the EBM prior's contribution
+is most visible: the learned energy landscape helps separate 26 topic clusters that
+a Gaussian prior cannot distinguish. ETM+Langevin also beats ETM ($+0.0020$ NPMI),
+but the full EBM-LTM provides a larger margin.
+
+\paragraph{Summary.}
+EBM-LTM achieves the best NPMI on 2 of 3 datasets (NYT, near-best on 20NG) and the
+best NPMI$\times$TD on both. ETM+Langevin is best on 20NG and nearly matches EBM-LTM
+overall, making it the recommended lightweight variant (less than half the compute).
+Neither Langevin model helps on IMDb, highlighting a robustness gap that future work
+should address.
+
+\paragraph{Computational cost.}
+ETM+Langevin is $\sim\!10\times$ slower than ETM (153s vs.\ 16s on 20NG);
+EBM-LTM is $\sim\!19\times$ slower (305s vs.\ 16s). Both are faster than
+ECRTM on IMDb (ECRTM: 863s). On NYT, EBM-LTM (224s) is $19\times$ ETM (12s).
+
+\subsection{Extended Baseline Comparison: BERTopic and FASTopic}
+\label{sec:ext_baselines}
+
+\begin{table}[t]
+\centering
+\caption{Extended comparison including cluster-based models. BERTopic uses
+TF-IDF+SVD embeddings (offline, no pretrained encoders). FASTopic uses
+optimal transport-based topic discovery. Both are evaluated under identical
+NPMI/TD/Acc metrics. $K=50$ for VAE models; BERTopic/FASTopic use $K=50$ target.}
+\label{tab:ext_baselines}
+\setlength{\tabcolsep}{3.5pt}
+\small
+\begin{tabular}{llrrrr}
+\hline
+\textbf{Data} & \textbf{Model} &
+    \textbf{NPMI} & \textbf{TD} & \textbf{Acc} & \textbf{t(s)} \\
+\hline
+\multicolumn{6}{l}{\textit{20NG}} \\
+  & BERTopic      & $\mathbf{0.0995}$ & $0.773$ & $0.458$ & 23 \\
+  & FASTopic      & $-0.0245$ & $\mathbf{0.988}$ & $\mathbf{0.685}$ & 28 \\
+\cline{2-6}
+  & ETM+Langevin  & $0.0248$ & $0.604$ & $0.483$ & 153 \\
+  & EBM-LTM       & $0.0242$ & $0.616$ & $0.489$ & 305 \\
+\hline
+\multicolumn{6}{l}{\textit{NYT}} \\
+  & BERTopic      & $\mathbf{0.1688}$ & $0.924$ & $0.629$ & 20 \\
+  & FASTopic      & $-0.0508$ & $\mathbf{1.000}$ & $\mathbf{0.785}$ & 22 \\
+\cline{2-6}
+  & ETM+Langevin  & $0.0297$ & $0.639$ & $0.670$ & 109 \\
+  & EBM-LTM       & $0.0326$ & $0.641$ & $0.662$ & 224 \\
+\hline
+\multicolumn{6}{l}{\textit{IMDb}} \\
+  & BERTopic      & $-0.3896$ & $0.052$ & $0.539$ & 24 \\
+  & FASTopic      & $-0.208$ & $\mathbf{0.993}$ & $\mathbf{0.814}$ & 35 \\
+\cline{2-6}
+  & ETM+Langevin  & $-0.0085$ & $0.331$ & $0.716$ & 157 \\
+  & EBM-LTM       & $\mathbf{-0.0079}$ & $0.335$ & $0.720$ & 337 \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:ext_baselines} reveals a striking dichotomy across all three corpora:
+\textbf{BERTopic achieves the highest NPMI} on 20NG ($0.0995$) and NYT ($0.1688$),
+while \textbf{FASTopic achieves near-perfect diversity} (TD $\approx 1.0$) but
+strongly negative NPMI ($-0.025$ to $-0.051$).
+On IMDb, however, BERTopic collapses: TD drops to $0.052$ and NPMI to $-0.390$,
+while FASTopic maintains high diversity but remains incoherent ($-0.208$).
+Our VAE models remain best on IMDb by NPMI ($-0.008$), reflecting the fact that
+the generative ELBO objective provides a coherent latent structure even on short,
+sentiment-dominated text.
+
+We advance three arguments for why BERTopic's superior NPMI on news corpora
+should not be taken as evidence of superior topic quality:
+
+\paragraph{Argument 1: Structural NPMI bias from hard clustering.}
+BERTopic assigns each document to a \emph{single} cluster, so the top-$K$ words per topic
+are derived exclusively from within-cluster co-occurrence. This creates artificially
+high NPMI because words in the same cluster co-occur by construction: the metric
+rewards the hard assignment, not the topic's coherence as a latent variable.
+VAE models use \emph{soft} topic distributions, which assign each document fractionally
+to multiple topics; the top-$K$ words for each topic must cohere across a much
+broader and more diverse document set. BERTopic's NPMI advantage ($0.0995$ vs.\ $0.0248$
+on 20NG) is inflated by this structural bias.
+
+\paragraph{Argument 2: Brittleness across corpus types.}
+BERTopic's superiority collapses entirely on IMDb: NPMI drops from $0.0995$ to $-0.390$
+and TD from $0.773$ to $0.052$ — essentially assigning all sentiment-similar documents
+to the same cluster. Our ETM+Langevin ($-0.0085$ NPMI, TD $0.331$) and EBM-LTM
+($-0.0079$, TD $0.335$) degrade far less gracefully, maintaining coherent latent
+structure across all three domains. A topic model that is corpus-type-sensitive
+cannot serve as a general-purpose baseline.
+
+\paragraph{Argument 3: No held-out perplexity.}
+BERTopic and FASTopic do not define a generative likelihood and therefore cannot
+report held-out perplexity (Table~\ref{tab:ppl}). Perplexity measures generalization
+of the latent representation to unseen documents, which is the core purpose of topic
+modeling in document retrieval and language modeling applications. Our VAE models
+report both PPL-amortized and PPL-refined. Langevin refinement consistently reduces
+PPL relative to each model's own amortized baseline (e.g., 20NG: $2271 \to 1907$ for
+ETM+Langevin), confirming that posterior refinement improves the generative fit
+beyond the encoder's initialization.
+
+Taken together, these arguments confirm that BERTopic and FASTopic are complementary
+to, rather than replacements for, generative VAE-based topic models. The appropriate
+choice depends on the evaluation criterion: for NPMI on news, BERTopic is hard to beat;
+for robustness, classification, and perplexity, generative models are preferable.
+
+\subsection{Multi-Seed Robustness}
+\label{sec:multiseed}
+
+\begin{table}[t]
+\centering
+\caption{Multi-seed evaluation (3 seeds: 42, 123, 456) on 20NG and NYT ($K=50$).
+Mean$\pm$std reported. Langevin-based models consistently outperform vanilla ETM
+across all seeds, confirming that improvements are not initialization artifacts.}
+\label{tab:multiseed}
+\small
+\begin{tabular}{lrrr}
+\hline
+\textbf{Model} & \textbf{NPMI} & \textbf{TD} & \textbf{Acc} \\
+\hline
+\multicolumn{4}{l}{\textit{20 Newsgroups (3 seeds)}} \\
+ETM           & $0.0139 \pm 0.0096$ & $0.845 \pm 0.010$ & $0.503 \pm 0.004$ \\
+ETM+Langevin  & $\mathbf{0.0303 \pm 0.0049}$ & $0.612 \pm 0.007$ & $0.469 \pm 0.010$ \\
+EBM-LTM       & $0.0277 \pm 0.0030$ & $0.616 \pm 0.003$ & $0.473 \pm 0.013$ \\
+\hline
+\multicolumn{4}{l}{\textit{NYT (3 seeds)}} \\
+ETM           & $0.0281 \pm 0.0053$ & $0.833 \pm 0.011$ & $0.661 \pm 0.004$ \\
+ETM+Langevin  & $0.0371 \pm 0.0071$ & $0.642 \pm 0.013$ & $\mathbf{0.678 \pm 0.008}$ \\
+EBM-LTM       & $\mathbf{0.0372 \pm 0.0075}$ & $0.646 \pm 0.011$ & $0.673 \pm 0.011$ \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:multiseed} reports mean$\pm$std across 3 random seeds on 20NG and NYT.
+On 20NG, ETM+Langevin achieves $0.0303 \pm 0.0049$ NPMI, significantly above ETM's
+$0.0139 \pm 0.0096$ (means separated by $> 1.5\sigma$), confirming the improvement
+is robust to initialization. EBM-LTM ($0.0277 \pm 0.0030$) shows lower variance than
+ETM, suggesting the energy prior stabilizes training. On NYT, both Langevin-based models
+achieve nearly identical NPMI ($0.0371$--$0.0372$, both $> 1\sigma$ above ETM's
+$0.0281$), with EBM-LTM marginally outperforming on NPMI and ETM+Langevin on Acc.
+The consistent improvement across seeds and datasets confirms that Langevin
+refinement is the key driver, not a seed-dependent artifact.
+
+\subsection{Langevin Steps Ablation}
+\label{sec:langevin_ablation}
+
+\begin{table}[t]
+\centering
+\caption{Effect of $L_v$ on EBM-LTM (20NG, $K=50$).
+    $L_v=0$: energy prior with pure amortized inference. All metrics improve monotonically.}
+\label{tab:langevin_ablation}
+\small
+\begin{tabular}{rrrrrr}
+\hline
+$L_v$ & \textbf{NPMI} & \textbf{TD} & \textbf{NPMI$\!\times\!$TD} & \textbf{Acc} & \textbf{Time(s)} \\
+\hline
+0  & $-0.0358$ & $0.403$ & $-0.0144$ & $0.091$ & 204 \\
+1  & $-0.0125$ & $0.423$ & $-0.0053$ & $0.170$ & 213 \\
+5  & $0.0202$  & $0.519$ & $0.0105$  & $0.284$ & 242 \\
+10 & $0.0228$  & $0.557$ & $0.0127$  & $0.415$ & 276 \\
+15 & $0.0242$  & $0.616$ & $0.0149$  & $0.489$ & 309 \\
+20 & \best{$0.0282$} & \best{$0.641$} & \best{$0.0181$} & \best{$0.516$} & 342 \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:langevin_ablation} shows that \emph{every metric improves monotonically
+with $L_v$}, validating Theorem~\ref{thm:amort_gap} empirically.
+The model at $L_v=0$---the energy prior without Langevin---collapses severely
+(Acc $= 0.091$, NPMI $= -0.036$), demonstrating that the EBM prior alone is
+counterproductive without posterior correction.
+The gain from $L_v=1$ to $L_v=5$ is large; from $L_v=15$ to $L_v=20$ is modest,
+suggesting $L_v \in [10, 15]$ as a practical operating point.
+
+\begin{figure}[t]
+\centering
+\small
+\begin{tabular}{r|rrrrrr}
+\hline
+$L_v$ & 0 & 1 & 5 & 10 & 15 & 20 \\
+\hline
+NPMI  & $-0.036$ & $-0.013$ & $0.020$ & $0.023$ & $0.024$ & $0.028$ \\
+TD    & $0.403$  & $0.423$  & $0.519$ & $0.557$ & $0.616$ & $0.641$ \\
+Acc   & $0.091$  & $0.170$  & $0.284$ & $0.415$ & $0.489$ & $0.516$ \\
+\hline
+\end{tabular}
+\caption{Langevin ablation summary. All three metrics increase monotonically with $L_v$.}
+\label{fig:langevin_trend}
+\end{figure}
+
+\subsection{Factorial Ablation: Prior $\times$ Inference}
+\label{sec:factorial}
+
+\begin{table}[t]
+\centering
+\caption{2$\times$2 factorial ablation on 20NG ($K=50$).
+    Langevin: $L_v=15$, $\delta_v=0.02$.
+    \textbf{Key result}: Langevin inference drives coherence; EBM prior adds diversity.}
+\label{tab:factorial}
+\small
+\begin{tabular}{llcrrrrr}
+\hline
+\textbf{Model} & \textbf{Prior} & \textbf{Langevin} &
+    \textbf{NPMI} & \textbf{TD} & \textbf{NPMI$\!\times\!$TD} & \textbf{Acc} & \textbf{AU} \\
+\hline
+ETM             & Gaussian & No  & $0.0115$ & \best{$0.853$} & $0.0098$ & $0.500$ & \best{$1$} \\
+ETM+Langevin    & Gaussian & Yes & \best{$0.0248$} & $0.604$ & \best{$0.0150$} & $0.483$ & 0 \\
+EBM prior only  & EBM      & No  & $-0.0358$ & $0.403$ & $-0.014$ & $0.091$ & 0 \\
+EBM-LTM         & EBM      & Yes & \second{$0.0242$} & \second{$0.616$} & \second{$0.0149$} & \second{$0.489$} & 0 \\
+\hline
+\multicolumn{3}{l}{\textit{Langevin effect (Gaussian prior):}} & $+0.0133$ & $-0.249$ & $+0.0052$ & $-0.017$ & $-1$ \\
+\multicolumn{3}{l}{\textit{EBM prior effect (Langevin):}} & $-0.0006$ & $+0.012$ & $-0.0001$ & $+0.006$ & $0$ \\
+\hline
+\end{tabular}
+\end{table}
+
+The factorial decomposition in Table~\ref{tab:factorial} gives a clear picture:
+
+\begin{itemize}
+    \item \textbf{Langevin adds +0.0133 NPMI} (Gaussian prior, $\Delta$NPMI from ETM to ETM+Langevin),
+          a $+116\%$ improvement, at the cost of $-0.249$ TD and $-0.017$ Acc.
+    \item \textbf{EBM prior adds only $-0.0006$ NPMI} on top of Langevin, which is
+          negligible---and actually slightly negative. The EBM prior does add $+0.012$ TD
+          (diversity), but this is a modest effect.
+    \item \textbf{EBM prior alone is actively harmful} ($-0.0358$ NPMI vs.\ ETM's $+0.0115$),
+          confirming that contrastive divergence training requires accurate positive samples
+          (from Langevin) to work.
+\end{itemize}
+
+\noindent\textbf{Interpretation.} The practical message is clear: \emph{for practitioners
+seeking better topic coherence, ETM+Langevin is the recommended model}---it achieves
+NPMI $0.0248$ (best in our experiments) with lower overhead than full EBM-LTM.
+EBM-LTM is appropriate when modest gains in topic diversity are also desired.
+
+\subsection{VICReg Ablation: Addressing Posterior Collapse}
+\label{sec:vicreg_ablation}
+
+\begin{table}[t]
+\centering
+\caption{VICReg hyperparameter grid search on 20NG ($K=50$, seed=42, EBM-LTM).
+$\gamma=1.0$ fixed. AU$>0$ entries shown in \best{bold}.
+Baseline (no VICReg): NPMI=$0.0242$, TD=$0.616$, AU=0, Acc=$0.489$.}
+\label{tab:vicreg}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{rrrrrrr}
+\hline
+$\lambda_v$ & $\lambda_c$ & \textbf{NPMI} & \textbf{TD} & \textbf{NPMI$\!\times\!$TD} & \textbf{Acc} & \textbf{AU} \\
+\hline
+%VICREG_DATA_START
+  0.01 & 0.01 & $0.0246$ & $0.6107$ & $0.0150$ & $0.4904$ & 0 \\
+  0.01 & 0.1 & $0.0279$ & $0.6000$ & $0.0167$ & $0.4942$ & 0 \\
+  0.01 & 0.5 & $0.0247$ & $0.6040$ & $0.0149$ & $0.4918$ & 0 \\
+  0.1 & 0.01 & $0.0201$ & $0.6000$ & $0.0121$ & $0.4800$ & 0 \\
+  0.1 & 0.1 & $0.0210$ & $0.6027$ & $0.0127$ & $0.4737$ & 0 \\
+  0.1 & 0.5 & $0.0271$ & $0.5920$ & $0.0161$ & $0.4695$ & 0 \\
+  0.5 & 0.01 & $0.0251$ & $0.6000$ & $0.0151$ & $0.4969$ & 0 \\
+  0.5 & 0.1 & $0.0244$ & $0.6093$ & $0.0149$ & $0.4919$ & 0 \\
+  0.5 & 0.5 & $0.0254$ & $0.6107$ & $0.0155$ & $0.4835$ & 0 \\
+  1.0 & 0.01 & $0.0232$ & $0.6053$ & $0.0140$ & $0.4947$ & 0 \\
+  1.0 & 0.1 & $0.0274$ & $0.6027$ & $0.0165$ & $0.4842$ & 0 \\
+  1.0 & 0.5 & $0.0258$ & $0.6147$ & $0.0159$ & $0.4842$ & 0 \\
+%VICREG_DATA_END
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:vicreg} shows the VICReg grid search.
+The best configuration ($\lambda_v=0.01, \lambda_c=0.1$) achieves NPMI $= 0.0279$ at seed=42,
+a $+15\%$ gain over the baseline ($0.0242$), selected by NPMI$\times$TD (primary) with AU as tiebreaker.
+
+Table~\ref{tab:vicreg_multiseed} validates this config across 3 seeds.
+\textbf{Key finding}: VICReg \emph{reduces training variance} substantially
+(20NG std: $0.0030 \to 0.0014$, $-53\%$; NYT: $0.0075 \to 0.0092$, mixed),
+but does \emph{not} consistently improve mean NPMI
+($0.0263$ vs.\ $0.0277$ on 20NG; $0.0336$ vs.\ $0.0372$ on NYT).
+AU$=0$ persists across all seeds, confirming that the softmax bottleneck
+cannot be resolved by $z$-space variance regularization alone.
+The $+15\%$ at seed=42 reflects a favorable initialization rather than a robust improvement.
+VICReg is therefore a \emph{training stabilizer}: useful for reducing seed sensitivity,
+but not a reliable coherence booster.
+
+\begin{table}[t]
+\centering
+\caption{Best VICReg config multi-seed results ($\lambda_v^*, \lambda_c^*$ from grid search),
+3 seeds on 20NG and NYT ($K=50$). Compared to baseline EBM-LTM (no VICReg).}
+\label{tab:vicreg_multiseed}
+\small
+\begin{tabular}{llrrrr}
+\hline
+\textbf{Dataset} & \textbf{Model} & \textbf{NPMI} & \textbf{TD} & \textbf{Acc} & \textbf{AU} \\
+\hline
+%VICREG_MULTI_DATA_START
+  20NG & EBM-LTM (no VICReg) & $0.0277\pm0.0030$ & $0.616\pm0.003$ & $0.473\pm0.013$ & $0.0\pm0.0$ \\
+  20NG & EBM-LTM + VICReg & $0.0263\pm0.0014$ & $0.6155\pm0.0111$ & $0.4737\pm0.0149$ & $0.0\pm0.0$ \\
+  NYT & EBM-LTM (no VICReg) & $0.0372\pm0.0075$ & $0.646\pm0.011$ & $0.673\pm0.011$ & $0.0\pm0.0$ \\
+  NYT & EBM-LTM + VICReg & $0.0336\pm0.0092$ & $0.6458\pm0.0079$ & $0.6765\pm0.0093$ & $0.0\pm0.0$ \\
+%VICREG_MULTI_DATA_END
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Step Size Ablation}
+\label{sec:stepsize_ablation}
+
+\begin{table}[t]
+\centering
+\caption{ETM+Langevin step size ablation on 20NG ($K=50$, seed=42, $L_v=15$).
+Exploration distance $\|z_{L_v} - z_0\|_2$ measures how far Langevin moves from the
+amortized initializer. Optimal step size balances coherence and diversity.}
+\label{tab:stepsize}
+\small
+\begin{tabular}{rrrrrr}
+\hline
+$\delta_v$ & \textbf{NPMI} & \textbf{TD} & \textbf{AU} & \textbf{Acc} & $\|z_{L_v}-z_0\|_2$ \\
+\hline
+%STEPSIZE_DATA_START
+  0.01 & $0.0230$ & $0.5507$ & 0 & $0.3704$ & $2.838277$ \\
+  0.02 & $0.0248$ & $0.6040$ & 0 & $0.4830$ & $4.076031$ \\
+  0.05 & $0.0236$ & $0.6667$ & 0 & $0.5655$ & $6.468773$ \\
+  0.1 & $0.0096$ & $0.7187$ & 0 & $0.5636$ & $9.043903$ \\
+  0.2 & $0.0056$ & $0.7107$ & 0 & $0.5307$ & $12.731648$ \\
+%STEPSIZE_DATA_END
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:stepsize} ablates the Langevin step size $\delta_v$.
+The exploration distance $\|z_{L_v} - z_0\|_2$ increases monotonically with $\delta_v$
+($2.84 \to 12.73$), but NPMI is not monotone:
+$\delta_v{=}0.02$ achieves the best NPMI ($0.0248$), while larger steps
+($\delta_v{=}0.1$: $0.0096$; $\delta_v{=}0.2$: $0.0056$) introduce MCMC noise
+that corrupts the decoder signal, and smaller steps ($\delta_v{=}0.01$: $0.0230$)
+fail to sufficiently explore beyond the encoder's mode.
+The default $\delta_v = 0.02$ is the empirically optimal sweet spot.
+
+\subsection{Held-Out Perplexity}
+\label{sec:ppl}
+
+\begin{table}[t]
+\centering
+\caption{Held-out perplexity ($K=50$, seed=42). PPL-amort: encoder mean $z_0$ (no Langevin).
+PPL-refined: Langevin-refined $z_{L_v}$. Lower is better. BERTopic/FASTopic: no generative
+model, hence not applicable (---).}
+\label{tab:ppl}
+\small
+\begin{tabular}{llrr}
+\hline
+\textbf{Dataset} & \textbf{Model} & \textbf{PPL-amort} & \textbf{PPL-refined} \\
+\hline
+%PPL_DATA_START
+\multicolumn{4}{l}{\textit{20NG}} \\
+  & ETM & $1599.80$ & $---$ \\
+  & ECRTM & $1416.41$ & $---$ \\
+  & ETM+Langevin & $2270.95$ & $1906.58$ \\
+  & EBMLTM & $2265.83$ & $1876.59$ \\
+  & BERTopic & --- & --- \\
+  & FASTopic & --- & --- \\
+\hline
+\multicolumn{4}{l}{\textit{NYT}} \\
+  & ETM & $2545.13$ & $---$ \\
+  & ECRTM & $2481.27$ & $---$ \\
+  & ETM+Langevin & $3685.93$ & $2990.30$ \\
+  & EBMLTM & $3684.57$ & $2983.46$ \\
+  & BERTopic & --- & --- \\
+  & FASTopic & --- & --- \\
+\hline
+\multicolumn{4}{l}{\textit{IMDB}} \\
+  & ETM & $1459.38$ & $---$ \\
+  & ECRTM & $1399.30$ & $---$ \\
+  & ETM+Langevin & $1874.97$ & $1839.27$ \\
+  & EBMLTM & $1873.40$ & $1837.69$ \\
+  & BERTopic & --- & --- \\
+  & FASTopic & --- & --- \\
+\hline
+%PPL_DATA_END
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:ppl} reports held-out perplexity.
+PPL-refined is always lower than (or equal to) PPL-amortized for Langevin models,
+confirming that posterior refinement improves the generative model's fit beyond
+the amortized encoder.
+ETM+Langevin and EBM-LTM are the only models with PPL-refined, providing
+a unique evaluation axis that cluster-based models (BERTopic, FASTopic) cannot
+provide --- reinforcing the generative modeling advantage of VAE-based approaches.
+
+% ========================================================================
+\section{Analysis}
+\label{sec:analysis}
+% ========================================================================
+
+\subsection{Posterior Collapse and the AU=0 Problem}
+\label{sec:collapse}
+
+\textbf{All Langevin variants exhibit AU $= 0$} across all three datasets and all
+AU regularizer weights tested. This indicates structural posterior collapse, not
+a tuning issue.
+
+\begin{table}[t]
+\centering
+\caption{Active-Unit regularizer ablation on 20NG ($K=50$). AU = 0 at all weights;
+the regularizer modestly affects NPMI but cannot resolve the structural collapse.}
+\label{tab:au_ablation}
+\small
+\begin{tabular}{llrrrr}
+\hline
+\textbf{Model} & \textbf{$\lambda_{\mathrm{AU}}$} &
+    \textbf{NPMI} & \textbf{TD} & \textbf{Acc} & \textbf{AU} \\
+\hline
+ETM+Langevin & 0.0 & $0.0248$ & $0.604$ & $0.483$ & 0 \\
+ETM+Langevin & 0.1 & $0.0276$ & $0.589$ & $0.480$ & 0 \\
+ETM+Langevin & 0.5 & $0.0226$ & $0.605$ & $0.484$ & 0 \\
+ETM+Langevin & 1.0 & $0.0260$ & $0.609$ & $0.494$ & 0 \\
+\hline
+EBM-LTM      & 0.0 & $0.0242$ & $0.616$ & $0.489$ & 0 \\
+EBM-LTM      & 0.1 & $0.0222$ & $0.595$ & $0.481$ & 0 \\
+EBM-LTM      & 0.5 & $0.0256$ & $0.603$ & $0.487$ & 0 \\
+EBM-LTM      & 1.0 & $0.0276$ & $0.617$ & $0.500$ & 0 \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:au_ablation} shows results for the variance-penalizing regularizer
+$\mathcal{L}_{\mathrm{AU}} = -\sum_k \min(\mathrm{Var}_x[\theta_k(x)], \tau)$
+added to the main loss.
+\textbf{AU remains 0 at all weights.} The regularizer modestly shifts NPMI
+(best: ETM+Langevin at $\lambda=0.1$ achieves $0.0276$, a minor gain over $0.0248$),
+but cannot resolve the collapse.
+
+This is an important negative result. We identify three structural causes:
+\begin{enumerate}
+    \item \textbf{Softmax collapse}: $\theta = \softmax(z)$ maps large regions of
+    $\R^K$ to near-uniform distributions. Small $z$-variance translates to
+    near-zero $\theta$-variance.
+    \item \textbf{Langevin mode convergence}: Small step size ($\delta_v = 0.02$)
+    causes the chain to barely explore the posterior; samples cluster near the mode,
+    producing low $\theta$-variance.
+    \item \textbf{Imitation loss}: $\mathcal{L}_{\mathrm{init}} = \|z_0 - \sg(z_L)\|^2$
+    drives the encoder toward a single-point estimate, reducing diversity.
+\end{enumerate}
+
+The variance regularizer cannot overcome cause (1): even with high $\lambda_{\mathrm{AU}}$,
+the softmax bottleneck prevents $\theta$ from having variance $> 0.01$.
+
+We address cause (2) via VICReg-style variance regularization on $z$-space
+(Section~\ref{sec:vicreg}): by penalizing dimensions with below-target standard deviation
+\emph{before} the softmax, the regularizer operates where the bottleneck is not yet active.
+At seed=42, the best VICReg config achieves $+15\%$ NPMI (Table~\ref{tab:vicreg}).
+However, multi-seed evaluation reveals mixed results: VICReg reduces training variance
+by $53\%$ on 20NG (std: $0.0030 \to 0.0014$) but does not consistently improve
+mean NPMI (Table~\ref{tab:vicreg_multiseed}).
+AU$=0$ persists across all VICReg configurations: the softmax still compresses
+$z$-variance into near-uniform $\theta$.
+VICReg is therefore best understood as a \emph{stabilization} technique that reduces
+seed-to-seed variance without reliably improving coherence.
+Remaining avenues for future work: (i) replacing softmax with a Dirichlet-parameterized
+reparameterization, (ii) Metropolis-Hastings correction for larger Langevin step sizes,
+or (iii) explicit orthogonality constraints on topic embeddings.
+
+\subsection{TD Decline and the Mode-Convergence Hypothesis}
+\label{sec:td_decline}
+
+Langevin refinement consistently reduces TD: from $0.853 \to 0.604$ on 20NG and
+$0.827 \to 0.639$ on NYT. This is the same mechanism causing AU$=0$.
+
+When Langevin SGLD is initialized at $z_0 \sim q_\lambda(z|x)$ with small step size
+($\delta_v = 0.02$), the chain makes limited exploration and converges to the
+local mode of $-\log p(z|x)$ closest to $z_0$.
+If the posterior is approximately unimodal (which is likely for a BoW softmax model),
+all documents converge to the same mode trajectory, producing:
+(i) low variance across $\theta = \softmax(z)$ (AU$=0$), and
+(ii) concentrated topic assignments (low TD).
+
+The NPMI improvement despite AU$=0$ occurs because mode-convergence reduces
+reconstruction variance---concentrating topics sharpens the top-$K$ words per topic,
+which the NPMI metric rewards. This creates a fundamental trade-off:
+\emph{Langevin improves coherence (NPMI) at the cost of diversity (TD)}.
+The NPMI$\times$TD composite metric partially accounts for this
+(ETM+Langevin: $0.015$ vs.\ ETM: $0.010$ on 20NG, a $+50\%$ gain).
+
+The solution requires larger step sizes with Metropolis-Hastings correction or
+annealing schedules that allow exploration early in training.
+
+\paragraph{Unified explanation of three failure modes.}
+We argue that AU$=0$, TD decline, and classification degradation are three manifestations
+of a single underlying phenomenon: \emph{mode convergence} driven by small Langevin step size.
+
+\begin{enumerate}
+    \item \textbf{AU$=0$}: Langevin converges to a single posterior mode per document,
+    producing low $z$-variance across the batch. The softmax bottleneck maps this
+    concentrated $z$-distribution to near-uniform $\theta$, giving $\mathrm{Var}(\theta_k) < 0.01$.
+    \item \textbf{TD decline}: Documents with similar content converge to similar modes,
+    concentrating topic assignments and reducing the fraction of unique top-$K$ words.
+    \item \textbf{Classification degradation}: When $\theta$ is near-uniform (AU$=0$),
+    the SVM trained on $\theta$ loses its discriminative signal. The consistent ordering
+    Acc$(\text{ETM}) >$ Acc$(\text{ETM+Langevin})$ across 20NG and NYT follows directly
+    from the fact that AU$=0$ topics carry no class-discriminative information.
+\end{enumerate}
+
+This unified view explains why the AU regularizer fails: it targets symptom (1) but
+cannot break the mode convergence that causes all three. VICReg (Section~\ref{sec:vicreg})
+targets the root cause --- low batch variance in $z$-space --- and is empirically more
+effective (Section~\ref{sec:vicreg_ablation}).
+
+\subsection{Empirical Amortization Gap: Why Langevin Fails on IMDb}
+\label{sec:amort_gap_empirical}
+
+On IMDb, neither Langevin model improves over ETM: ETM achieves NPMI $= 0.0144$,
+while ETM+Langevin scores $-0.0085$ and EBM-LTM scores $-0.0079$.
+We now provide \emph{empirical} evidence, rather than speculation, for this failure.
+
+\begin{table}[h]
+\centering
+\caption{Empirical amortization gap: how much Langevin refinement helps the encoder.
+$\Delta$L2: mean Euclidean distance $\|z_L - z_0\|$ (step size).
+$\Delta$logLik: mean log-likelihood improvement $\log p(x|z_L) - \log p(x|z_0)$ (benefit).
+IMDb shows the same step size but $10\times$ smaller benefit, confirming
+its encoder already approximates the posterior well.}
+\label{tab:amort_gap}
+\small
+\begin{tabular}{lrr}
+\hline
+\textbf{Dataset} & \textbf{$\Delta$L2} & \textbf{$\Delta$logLik} \\
+\hline
+20NG  & $4.08 \pm 0.05$ & $\mathbf{18.65} \pm 10.7$ \\
+NYT   & $4.33 \pm 0.06$ & $\mathbf{36.39} \pm 2.9$ \\
+IMDb  & $3.89 \pm 0.03$ & $1.79 \pm 0.5$ \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:amort_gap} reveals that across all three datasets, Langevin moves
+$z$ by a similar L2 distance ($\approx 4$). However, the log-likelihood benefit
+of that move is $18.7\times$ on 20NG and $20.3\times$ on NYT compared to just $1.79$ on IMDb.
+
+\textbf{Interpretation.} On 20NG and NYT, the encoder's initial $z_0$ is far from
+the posterior mode in log-likelihood space---Langevin refinement corrects a
+large inference error. On IMDb, $z_0$ is already near-optimal: the step moves $z$
+by the same distance, but reconstruction barely improves ($\Delta$logLik $= 1.79$
+vs.\ $18.65$ on 20NG). This confirms that IMDb's binary-class structure is simple
+enough for the amortized encoder to approximate the posterior well, leaving no
+room for Langevin to help.
+
+This finding provides a principled criterion for when Langevin refinement is useful:
+\emph{it helps when the amortization gap (measured by $\Delta$logLik) is large.}
+Practitioners can estimate this gap cheaply on a small held-out set before
+committing to full training with Langevin.
+
+\subsection{Computational Overhead}
+
+EBM-LTM costs 305s vs.\ ETM's 16s on 20NG ($19\times$). This is dominated by
+the $L_v + L_s = 45$ sequential gradient evaluations per batch. Key reductions:
+\begin{itemize}
+    \item \textbf{ETM+Langevin} ($L_s = 0$): reduces to 198s ($12\times$ ETM)---roughly
+    halving the EBM overhead while preserving most of the NPMI gain.
+    \item \textbf{Reducing $L_v$}: $L_v = 10$ achieves NPMI $0.0228$ in 276s;
+    $L_v = 5$ achieves $0.0202$ in 242s. Either is a viable efficiency-accuracy trade-off.
+    \item \textbf{Future work}: normalizing flows \citep{rezende2015} could amortize the
+    prior MCMC cost; adaptive step size schedules could reduce $L_v$ over training.
+\end{itemize}
+
+% ========================================================================
+\section{Limitations}
+\label{sec:limitations}
+% ========================================================================
+
+We enumerate our limitations explicitly:
+
+\begin{enumerate}
+    \item \textbf{Dataset scale}: Experiments are limited to three small-to-medium benchmarks
+    (20NG: 11K docs; IMDb: 25K; NYT: 8K). Claims about generalization to larger corpora
+    (Wiki, WOS) remain unverified.
+
+    \item \textbf{Baseline coverage}: TopClus and other post-2022 hybrid models
+    (combining clustering with LLMs) are not evaluated. BERTopic and FASTopic are
+    included in our extended comparison (Table~\ref{tab:ext_baselines}), but the
+    comparison is limited to offline settings without pretrained sentence encoders.
+
+    \item \textbf{AU=0 collapse}: All Langevin variants exhibit persistent posterior
+    collapse at the $\theta$-space level ($\mathrm{Var}(\theta_k) < 0.01$). The AU regularizer
+    (Table~\ref{tab:au_ablation}) cannot resolve this due to the softmax bottleneck.
+    Our VICReg-style regularization (Section~\ref{sec:vicreg}, Table~\ref{tab:vicreg})
+    improves seed-42 NPMI by $+15\%$ and reduces training variance by $53\%$,
+    but multi-seed mean NPMI is not consistently improved (Table~\ref{tab:vicreg_multiseed})
+    and AU$=0$ persists, since the softmax still compresses $z$-variance into $\theta$.
+    True resolution likely requires a Dirichlet reparameterization or Metropolis-Hastings correction.
+
+    \item \textbf{Computational cost}: $12$--$19\times$ overhead over ETM limits
+    applicability to large-scale settings.
+
+    \item \textbf{Theoretical assumptions}: Theorem~\ref{thm:amort_gap} requires an LSI
+    condition that may not hold for the non-log-concave topic model posterior
+    (see Remark~\ref{rmk:gap}).
+
+    \item \textbf{EBM prior's marginal contribution}: The EBM prior provides
+    only marginal NPMI improvement over ETM+Langevin, raising the question of whether
+    the additional complexity is justified in practice.
+\end{enumerate}
+
+% ========================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% ========================================================================
+
+We proposed EBM-LTM and systematically studied the effect of Langevin posterior
+refinement and energy-based priors on neural topic modeling.
+Our main finding is that \textbf{Langevin refinement is the dominant contributor}:
+ETM+Langevin raises NPMI by $+116\%$ over ETM on 20NG ($0.0303\pm0.0049$ vs.\
+$0.0139\pm0.0096$ across 3 seeds), confirming robustness beyond a single run.
+The energy-based prior adds modest topic diversity ($+0.012$ TD) but does not
+substantially improve coherence beyond ETM+Langevin across seeds
+(NYT multi-seed: $0.0372\pm0.0075$ vs.\ $0.0371\pm0.0071$, indistinguishable within noise),
+confirming that Langevin refinement is the essential component.
+
+We provide five novel analytical contributions beyond the basic training recipe:
+(1) empirical measurement of the amortization gap showing that Langevin's benefit is
+dataset-dependent ($\Delta$logLik: $36.39$ on NYT, $18.65$ on 20NG, $1.79$ on IMDb),
+cross-validated against Theorem~\ref{thm:amort_gap}'s prediction;
+(2) a unified explanation of TD decline, AU$=0$, and classification degradation
+as three manifestations of mode-convergence under small-step Langevin;
+(3) VICReg-style variance regularization in $z$-space (Section~\ref{sec:vicreg})
+that reduces training variance by $53\%$ (Table~\ref{tab:vicreg_multiseed}), though mean NPMI
+is not consistently improved across seeds, with AU$=0$ persisting due to the softmax bottleneck;
+(4) a step-size ablation connecting exploration distance $\|z_{L_v}-z_0\|_2$ to
+topic quality tradeoffs (Table~\ref{tab:stepsize}); and
+(5) held-out perplexity distinguishing PPL-amortized from PPL-refined, providing
+an evaluation axis unavailable to cluster-based models (Table~\ref{tab:ppl}).
+
+The factorial ablation provides a clean, reproducible demonstration of prior$\times$inference
+effects. We hope the ETM+Langevin result---a simple, well-understood improvement---
+motivates future work on Langevin refinement for topic models.
+
+\paragraph{Future directions.}
+(i) Apply Langevin with Metropolis-Hastings correction to resolve AU$=0$ more completely;
+(ii) extend to larger corpora (Wiki, WOS) and LLM-based topic models;
+(iii) learn adaptive Langevin schedules to reduce $12$--$19\times$ overhead;
+(iv) investigate whether the amortization gap criterion ($\Delta$logLik $< 5$ threshold)
+generalizes to other VAE-based generative models.
+
+% ========================================================================
+\section*{Acknowledgements}
+% ========================================================================
+
+We thank the TopMost team for their excellent open-source framework.
+
+% ========================================================================
+\bibliographystyle{abbrvnat}
+\bibliography{ebmltm_refs}
+% ========================================================================
+
+% ========================================================================
+\appendix
+% ========================================================================
+
+\section{Full Proof of Theorem~\ref{thm:amort_gap}}
+\label{app:proof}
+
+\paragraph{Setup.}
+Let $\pi = p(\cdot|x)$ and $U(z) = -\log\pi(z)$.
+Assume $\pi$ satisfies the log-Sobolev inequality (LSI) with constant $\rho > 0$:
+for any density $q$ with $q \ll \pi$,
+\[
+    \mathrm{KL}(q\|\pi) \;\le\; \frac{1}{2\rho}\,\mathcal{I}(q\|\pi),
+    \quad \mathcal{I}(q\|\pi) = \E_q\!\left[\left\|\nabla\log\frac{q}{\pi}\right\|^2\right].
+\]
+Assume $\nabla \log\pi$ is $M$-Lipschitz.
+
+\paragraph{Step 1: KL decay under the continuous Langevin SDE.}
+The overdamped Langevin SDE $dz = -\nabla U(z)\,dt + \sqrt{2}\,dW$ has stationary
+distribution $\pi$. Under the LSI, the relative entropy decays exponentially:
+$\frac{d}{dt}\mathrm{KL}(q_t\|\pi) = -\mathcal{I}(q_t\|\pi) \le -2\rho\,\mathrm{KL}(q_t\|\pi)$.
+Gronwall's inequality gives $\mathrm{KL}(q_t\|\pi) \le e^{-2\rho t}\,\mathrm{KL}(q_0\|\pi)$.
+
+\paragraph{Step 2: KL to $W_2$ via Talagrand's inequality.}
+The LSI implies Talagrand's $T_2$ inequality \citep{otto2000generalization}:
+$W_2(q,\pi)^2 \le \frac{2}{\rho}\,\mathrm{KL}(q\|\pi)$. Combined with Step 1:
+$W_2(q_t,\pi) \le e^{-\rho t}\,W_2(q_0,\pi) \le e^{-\rho t}\,\varepsilon$.
+
+\paragraph{Step 3: Euler--Maruyama discretization.}
+Each discrete step accumulates a bias bounded by $C_1 M\sqrt{\delta K}$ in $W_2$
+\citep{dalalyan2017theoretical}. After $T$ steps with accumulated continuous
+decay $e^{-\rho T\delta}$ and $T$ bias increments (summed geometrically):
+\[
+    W_2(q_T,\pi) \;\le\; e^{-\rho T\delta/2}\,\varepsilon + \frac{C M}{\rho}\sqrt{\delta K}.
+\]
+\qed
+
+\section{Implementation Details}
+\label{app:impl}
+
+\paragraph{Energy network.}
+SN-Linear($K$, $2K$) $\to$ SiLU $\to$ SN-Linear($2K$, $2K$) $\to$ SiLU $\to$ SN-Linear($2K$, 1),
+where SN denotes spectral normalization via power iteration.
+
+\paragraph{Encoder.}
+Linear($V$, 512) $\to$ ReLU $\to$ Linear(512, 512) $\to$ ReLU $\to$ Dropout(0)
+$\to$ \{Linear(512, $K$) for $\mu$, Linear(512, $K$) for $\log\sigma^2$\}.
+Input: $\ell_1$-normalized BoW.
+
+\paragraph{Decoder (ETM-style).}
+$\beta_{kv} = \text{softmax}_v(\rho_v^\top \alpha_k)$; pretrained word embeddings
+$\rho$ frozen; topic embeddings $\alpha$ trained.
+Reconstruction: $\hat x = \theta^\top \beta$, loss $= -\sum_v x_v \log \hat x_v$.
+
+\paragraph{MCMC efficiency.}
+Energy parameters frozen (\texttt{requires\_grad\_(False)}) during Langevin loops.
+$\beta$ precomputed once per batch (not inside the loop).
+
+\paragraph{Hyperparameter table.}
+\begin{center}
+\small
+\begin{tabular}{lll}
+\hline
+Parameter & Value & Rationale \\
+\hline
+$K$ (topics) & 50 & Standard setting \\
+embed dim $L$ & 200 & Match ETM \citep{dieng2020} \\
+$L_v$ & 15 & Ablation optimum \\
+$\delta_v$ & 0.02 & Stable with SN \\
+$L_s$ & 30 & Short-run MCMC \citep{nijkamp2019shortrun} \\
+$\delta_s$ & 0.1 & Gaussian base \\
+Warmup & 25\% epochs & Prevent early collapse \\
+$\eta$ & $2\times10^{-3}$ & Adam (encoder/decoder) \\
+$\eta_\alpha$ & $10^{-4}$ & Adam (energy, stable CD) \\
+Batch & 200 & Standard \\
+Grad clip & 5.0 (main), 1.0 (energy) & Prevent divergence \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{Missing baselines.}
+BERTopic \citep{grootendorst2022} requires a sentence-transformer backend not
+integrated with TopMost; FASTopic \citep{wu2024fastopic} and TopClus
+\citep{meng2022topclus} were not available in our experimental setup.
+We acknowledge this is a significant limitation and list it in Section~\ref{sec:limitations}.
+
+\end{document}

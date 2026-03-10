@@ -55,6 +55,11 @@ class ECRTM(nn.Module):
         beta = F.softmax(-dist / self.beta_temp, dim=0)
         return beta
 
+    def get_recon(self, theta):
+        """Return proper word distribution using the same decoder as forward()."""
+        beta = self.get_beta()
+        return F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)
+
     def reparameterize(self, mu, logvar):
         if self.training:
             std = torch.exp(0.5 * logvar)
